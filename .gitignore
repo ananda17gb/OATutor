@@ -37,4 +37,4 @@ pnpm-lock.yaml
 
 /generated
 .vercel
-**/oatutor-ta-firebase-adminsdk-fbsvc-580f01c79f.json
+aws/lti-middleware/oatutor-ta-firebase-adminsdk-fbsvc-580f01c79f.json
