@@ -32,7 +32,7 @@ const SetUpCanvasIntegration = () => {
         <h4>Creating a Canvas Course</h4>
 
         Please visit Canvas' post on their community posts <a href={createCourseLink} target={"_blank"}
-                                                              rel="noreferrer">here</a>.
+            rel="noreferrer">here</a>.
 
         <h4>Navigating to the Course App Settings</h4>
 
@@ -42,7 +42,7 @@ const SetUpCanvasIntegration = () => {
             <ZoomImage
                 alt={"Screenshot showing the user selecting their first course in the courses tab."}
                 className={classes.image}
-                src={`${process.env.PUBLIC_URL}/static/images/posts/setting-up-canvas-integration/courses%20selection.PNG`}/>
+                src={`${process.env.PUBLIC_URL}/static/images/posts/setting-up-canvas-integration/courses%20selection.PNG`} />
         </div>
 
         Navigate to the Settings > Apps tab of that course. Then click on the blue "+ App" button.
@@ -51,7 +51,7 @@ const SetUpCanvasIntegration = () => {
             <ZoomImage
                 alt={"Screenshot showing the user on the app tab of the settings page."}
                 className={classes.image}
-                src={`${process.env.PUBLIC_URL}/static/images/posts/setting-up-canvas-integration/settings%20app%20page.PNG`}/>
+                src={`${process.env.PUBLIC_URL}/static/images/posts/setting-up-canvas-integration/settings%20app%20page.PNG`} />
         </div>
 
         Select "By URL" in the Configuration Type dropdown.
@@ -73,17 +73,17 @@ const SetUpCanvasIntegration = () => {
         </>}
         <div className={classes.fullWidth}>
             <span
-                className={classes.unselectable}>Config URL: </span><code>https://cahlr.github.io/{SITE_NAME}/lti-consumer-config.xml</code>
+                className={classes.unselectable}>Config URL: </span><code>https://oatutor.vercel.app/{SITE_NAME}/lti-consumer-config.xml</code>
         </div>
         <div className={clsx(classes.fullWidth, classes.textCenter, classes["p-8"])}>
             <ZoomImage
                 alt={"Screenshot showing an example App configuration with the fields filled out."}
                 className={classes.image}
-                src={`${process.env.PUBLIC_URL}/static/images/posts/setting-up-canvas-integration/add%20app.PNG`}/>
+                src={`${process.env.PUBLIC_URL}/static/images/posts/setting-up-canvas-integration/add%20app.PNG`} />
         </div>
 
         Click "Submit" and you will be able to start using {SITE_NAME} as an external tool.
-        <Spacer height={24 * 8}/>
+        <Spacer height={24 * 8} />
     </>
 }
 

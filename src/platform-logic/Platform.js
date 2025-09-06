@@ -33,7 +33,7 @@ class Platform extends React.Component {
 
     constructor(props, context) {
         super(props);
-        
+
         this.problemIndex = {
             problems: problemPool,
         };
@@ -78,7 +78,7 @@ class Platform extends React.Component {
     componentDidMount() {
         this._isMounted = true;
         if (this.props.lessonID != null) {
-            console.log("calling selectLesson from componentDidMount...") 
+            console.log("calling selectLesson from componentDidMount...")
             const lesson = findLessonById(this.props.lessonID)
             console.debug("lesson: ", lesson)
             this.selectLesson(lesson).then(
@@ -91,7 +91,7 @@ class Platform extends React.Component {
             );
 
             const { setLanguage } = this.props;
-            if (lesson.courseName == 'Matematik 4') {
+            if (lesson.courseName === 'Matematik 4') {
                 setLanguage('se')
             } else {
                 const defaultLocale = localStorage.getItem('defaultLocale');
@@ -112,7 +112,7 @@ class Platform extends React.Component {
         this.onComponentUpdate(prevProps, prevState, snapshot);
     }
 
-    
+
     onComponentUpdate(prevProps, prevState, snapshot) {
         if (
             Boolean(this.state.currProblem?.id) &&
@@ -124,8 +124,8 @@ class Platform extends React.Component {
             this.context.problemID = "n/a";
         }
     }
-    
-    async selectLesson(lesson, updateServer=true) {
+
+    async selectLesson(lesson, updateServer = true) {
         const context = this.context;
         console.debug("lesson: ", context)
         console.debug("update server: ", updateServer)
@@ -221,7 +221,7 @@ class Platform extends React.Component {
                         }
                     );
                     const responseText = await response.text();
-                    let [message, ...addInfo] = responseText.split("|");
+                    let [, ...addInfo] = responseText.split("|");
                     this.props.history.push(
                         `/assignment-already-linked?to=${addInfo.to}`
                     );
@@ -235,7 +235,7 @@ class Platform extends React.Component {
             const { getByKey } = this.context.browserStorage;
             return await getByKey(
                 LESSON_PROGRESS_STORAGE_KEY(this.lesson.id)
-            ).catch((err) => {});
+            ).catch((err) => { });
         };
 
         const [, prevCompletedProbs] = await Promise.all([
@@ -409,8 +409,8 @@ class Platform extends React.Component {
     render() {
         const { translate } = this.props;
         this.studentNameDisplay = this.context.studentName
-        ? decodeURIComponent(this.context.studentName) + " | "
-        : translate('platform.LoggedIn') + " | ";
+            ? decodeURIComponent(this.context.studentName) + " | "
+            : translate('platform.LoggedIn') + " | ";
         return (
             <div
                 style={{
@@ -445,10 +445,10 @@ class Platform extends React.Component {
                                         findLessonById(this.props.lessonID)
                                     )
                                         ? findLessonById(this.props.lessonID)
-                                              .name +
-                                          " " +
-                                          findLessonById(this.props.lessonID)
-                                              .topics
+                                            .name +
+                                        " " +
+                                        findLessonById(this.props.lessonID)
+                                            .topics
                                         : ""}
                                 </div>
                             </Grid>
@@ -460,13 +460,13 @@ class Platform extends React.Component {
                                     }}
                                 >
                                     {this.state.status !== "courseSelection" &&
-                                    this.state.status !== "lessonSelection" &&
-                                    (this.lesson.showStuMastery == null ||
-                                        this.lesson.showStuMastery)
+                                        this.state.status !== "lessonSelection" &&
+                                        (this.lesson.showStuMastery == null ||
+                                            this.lesson.showStuMastery)
                                         ? this.studentNameDisplay +
                                         translate('platform.Mastery') +
-                                          Math.round(this.state.mastery * 100) +
-                                          "%"
+                                        Math.round(this.state.mastery * 100) +
+                                        "%"
                                         : ""}
                                 </div>
                             </Grid>

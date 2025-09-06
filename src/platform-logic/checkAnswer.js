@@ -100,11 +100,11 @@ function convertSwedishToUS(numberString) {
  * @param questionText {string} allows for a check to see if student pasted in the answer exactly
  * @returns {[string, boolean | string, null | WrongAnswerReasons]}
  */
-function checkAnswer({ attempt, actual, answerType, precision = 5, variabilization = {}, questionText = ""}) {
-    if (localStorage.getItem('locale') == 'se') {
+function checkAnswer({ attempt, actual, answerType, precision = 5, variabilization = {}, questionText = "" }) {
+    if (localStorage.getItem('locale') === 'se') {
         attempt = convertSwedishToUS(attempt)
     }
-    
+
     let parsed = attempt.replace(/\s+/g, '');
     if (variabilization) {
         actual = actual.map((actualAns) => variabilize(actualAns, variabilization));
@@ -146,7 +146,7 @@ function checkAnswer({ attempt, actual, answerType, precision = 5, variabilizati
                 if (!parsed) {
                     parsed = attempt
                 }
-                
+
                 if (IS_STAGING_OR_DEVELOPMENT) {
                     console.debug("checkAnswer.js: Using KAS to compare answer with solution", "attempt", attempt, "actual", actual, "parsed", parsed)
 

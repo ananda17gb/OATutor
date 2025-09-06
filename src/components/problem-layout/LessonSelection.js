@@ -25,11 +25,11 @@ class LessonSelection extends React.Component {
         super(props);
         const { courseNum, setLanguage } = this.props;
 
-        if (courseNum == 6) {
+        if (courseNum === 6) {
             setLanguage('se')
-        } 
-        
-        if (props.history.location.pathname == '/') {
+        }
+
+        if (props.history.location.pathname === '/') {
             const defaultLocale = localStorage.getItem('defaultLocale');
             setLanguage(defaultLocale)
         }
@@ -50,10 +50,10 @@ class LessonSelection extends React.Component {
     togglePopup = () => {
         console.log("Toggling popup visibility");
         this.setState((prevState) => ({
-          showPopup: !prevState.showPopup,
+            showPopup: !prevState.showPopup,
         }));
-      };
-      
+    };
+
     removeProgress = () => {
         this.setState({ removedProgress: true });
         this.props.removeProgress();
@@ -97,11 +97,11 @@ class LessonSelection extends React.Component {
                                     && <h4>(for {this.user.resource_link_title})</h4>
                                 }
                                 {
-                                    IS_STAGING_OR_DEVELOPMENT && <BuildTimeIndicator/>
+                                    IS_STAGING_OR_DEVELOPMENT && <BuildTimeIndicator />
                                 }
                             </center>
-                            <Divider/>
-                            <Spacer/>
+                            <Divider />
+                            <Spacer />
                             <Grid container spacing={3}>
                                 {selectionMode === "course"
                                     ? this.coursePlans
@@ -122,7 +122,7 @@ class LessonSelection extends React.Component {
                                                             <img
                                                                 src={`${process.env.PUBLIC_URL}/static/images/icons/folder.png`}
                                                                 width="64px"
-                                                                alt="folderIcon"/>
+                                                                alt="folderIcon" />
                                                         </IconButton>
                                                     </Paper>
                                                 </center>
@@ -131,44 +131,44 @@ class LessonSelection extends React.Component {
                                     : this.coursePlans[this.props.courseNum].lessons.map((lesson, i) => {
                                         return (
                                             <Grid item xs={12} sm={6} md={4} key={i}>
-    <center>
-      <Paper className={classes.paper} style={{ position: 'relative' }}>
-        {/* top-right “view all problems” button */}
-        <IconButton
-          size="small"
-          style={{ position: 'absolute', top: 8, right: 8 }}
-          aria-label={`View all problems for lesson ${lesson.id}`}
-          onClick={() => this.props.history.push(`/lessons/${lesson.id}/problems`)}
-        >
-          <MenuBookIcon fontSize="small" />
-        </IconButton>
+                                                <center>
+                                                    <Paper className={classes.paper} style={{ position: 'relative' }}>
+                                                        {/* top-right “view all problems” button */}
+                                                        <IconButton
+                                                            size="small"
+                                                            style={{ position: 'absolute', top: 8, right: 8 }}
+                                                            aria-label={`View all problems for lesson ${lesson.id}`}
+                                                            onClick={() => this.props.history.push(`/lessons/${lesson.id}/problems`)}
+                                                        >
+                                                            <MenuBookIcon fontSize="small" />
+                                                        </IconButton>
 
-        <h2 style={{ marginTop: 5, marginBottom: 10 }}>
-          {lesson.name.replace(/##/g, "")}
-        </h2>
-        <h3 style={{ marginTop: 5 }}>{lesson.topics}</h3>
+                                                        <h2 style={{ marginTop: 5, marginBottom: 10 }}>
+                                                            {lesson.name.replace(/##/g, "")}
+                                                        </h2>
+                                                        <h3 style={{ marginTop: 5 }}>{lesson.topics}</h3>
 
-        <Button
-          variant="contained"
-          color="primary"
-          className={classes.button}
-          onClick={() => this.props.history.push(`/lessons/${lesson.id}`)}
-        >
-          {translate('lessonSelection.onlyselect')}
-        </Button>
-      </Paper>
-    </center>
-  </Grid>
+                                                        <Button
+                                                            variant="contained"
+                                                            color="primary"
+                                                            className={classes.button}
+                                                            onClick={() => this.props.history.push(`/lessons/${lesson.id}`)}
+                                                        >
+                                                            {translate('lessonSelection.onlyselect')}
+                                                        </Button>
+                                                    </Paper>
+                                                </center>
+                                            </Grid>
                                         )
                                     })
                                 }
                             </Grid>
-                            <Spacer/>
+                            <Spacer />
                         </Box>
                     </Grid>
-                    <Spacer/>
+                    <Spacer />
                     <Grid container spacing={0}>
-                        <Grid item xs={3} sm={3} md={5} key={1}/>
+                        <Grid item xs={3} sm={3} md={5} key={1} />
                         {!this.isPrivileged && <Grid item xs={6} sm={6} md={2} key={2}>
                             {this.state.preparedRemoveProgress ?
                                 <Button className={classes.button} style={{ width: "100%" }} size="small"
@@ -178,9 +178,9 @@ class LessonSelection extends React.Component {
                                     onClick={this.prepareRemoveProgress}
                                     disabled={this.state.preparedRemoveProgress}>{translate('lessonSelection.resetprogress')}</Button>}
                         </Grid>}
-                        <Grid item xs={3} sm={3} md={4} key={3}/>
+                        <Grid item xs={3} sm={3} md={4} key={3} />
                     </Grid>
-                    <Spacer/>
+                    <Spacer />
                 </div>
                 <footer>
                     <div style={{ display: "flex", flexDirection: "row", alignItems: "center" }}>
@@ -193,7 +193,7 @@ class LessonSelection extends React.Component {
                                 <HelpOutlineOutlinedIcon htmlColor={"#000"} style={{
                                     fontSize: 36,
                                     margin: -2
-                                }}/>
+                                }} />
                             </IconButton>
                         </div>
                         <Popup isOpen={showPopup} onClose={this.togglePopup}>

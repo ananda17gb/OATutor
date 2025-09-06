@@ -1,0 +1,45 @@
+{
+    "$schema": "https://openapi.vercel.sh/vercel.json",
+    "version": 2,
+    "builds": [
+        {
+            "src": "package.json",
+            "use": "@vercel/static-build",
+            "config": {
+                "distDir": "build"
+            }
+        },
+        {
+            "src": "aws/lti-middleware/index.js",
+            "use": "@vercel/node",
+            "config": {
+                "includeFiles": [
+                    "common/**",
+                    "aws/lti-middleware/**"
+                ]
+            }
+        }
+    ],
+    "routes": [
+        {
+            "src": "/launch",
+            "dest": "/aws/lti-middleware/index.js"
+        },
+        {
+            "src": "/setLesson",
+            "dest": "/aws/lti-middleware/index.js"
+        },
+        {
+            "src": "/postScore",
+            "dest": "/aws/lti-middleware/index.js"
+        },
+        {
+            "src": "/auth",
+            "dest": "/aws/lti-middleware/index.js"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/build/$1"
+        }
+    ]
+}

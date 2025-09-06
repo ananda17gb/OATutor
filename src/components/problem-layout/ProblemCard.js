@@ -19,7 +19,7 @@ import {
 import {
     DYNAMIC_HINT_URL,
     DYNAMIC_HINT_TEMPLATE,
-    ENABLE_BOTTOM_OUT_HINTS,
+    // ENABLE_BOTTOM_OUT_HINTS,
     ThemeContext,
 } from "../../config/config.js";
 
@@ -144,12 +144,12 @@ class ProblemCard extends React.Component {
             activeHintType: "none", // "none", or "normal".
             hints: this.hints,
             // When we are currently streaming the response from ChatGPT, this variable is `true`
-            isGeneratingHint: false, 
+            isGeneratingHint: false,
             lastAIHintHash: null,
         };
 
-         // This is used for AI hint generation
-         if (this.giveDynamicHint) {
+        // This is used for AI hint generation
+        if (this.giveDynamicHint) {
             const gptHint = {
                 id: this.step.id + "-h0",  // Unique ID for the GPT hint
                 title: "ChatGPT AI Hint",  // Translated title
@@ -157,7 +157,7 @@ class ProblemCard extends React.Component {
                 type: "gptHint",  // Custom type for GPT hint
                 dependencies: [],
             };
-        
+
             this.hints.unshift(gptHint);
         }
     }
@@ -235,7 +235,7 @@ class ProblemCard extends React.Component {
         const { seed, problemVars, problemID, courseName, answerMade, lesson } =
             this.props;
 
-        if (inputVal == '') {
+        if (inputVal === '') {
             toastNotifyEmpty(this.translate)
             return;
         }
@@ -313,12 +313,12 @@ class ProblemCard extends React.Component {
             this.setState(
                 () => ({
                     enableHintGeneration: false,
-            }))
+                }))
         }
         this.setState(
             (prevState) => ({
                 activeHintType: prevState.activeHintType === "normal" ? "none" : "normal"
-                }),
+            }),
             () => {
                 this.props.answerMade(
                     this.index,
@@ -421,11 +421,11 @@ class ProblemCard extends React.Component {
             .replace("{question_subtitle}", questionSubTitle)
             .replace("{student_answer}", inputVal)
             .replace("{correct_answer}", correctAnswer);
-        return  {
+        return {
             role: "user",
             message: promptContent
-            }
-        };
+        }
+    };
 
     generateHintFromGPT = async (forceRegenerate) => {
         const { inputVal, lastAIHintHash, isGeneratingHint } = this.state;
@@ -450,8 +450,9 @@ class ProblemCard extends React.Component {
             isGeneratingHint: true,
             lastAIHintHash: currentHash,
         });
-    
-        const [parsed, correctAnswer, reason] = checkAnswer({
+
+        // const [parsed, correctAnswer, reason] = checkAnswer({
+        const [parsed, correctAnswer] = checkAnswer({
             attempt: this.state.inputVal,
             actual: this.step.stepAnswer,
             answerType: this.step.answerType,
@@ -467,9 +468,9 @@ class ProblemCard extends React.Component {
             questionText:
                 this.step.stepBody.trim() || this.step.stepTitle.trim(),
         });
-    
+
         const isCorrect = !!correctAnswer;
-    
+
         // Define callbacks
         const onChunkReceived = (streamedHint) => {
             this.setState((prevState) => ({
@@ -489,7 +490,7 @@ class ProblemCard extends React.Component {
                 isGeneratingHint: false,
             });
         }
-    
+
         /** When we receive an error in the hint generation process,
          *  revert back to manual hints.
          */
@@ -498,7 +499,7 @@ class ProblemCard extends React.Component {
                 isGeneratingHint: false,
             })
             console.error("Error generating AI hint:", error);
-        
+
             this.hints = JSON.parse(
                 JSON.stringify(this.step.hints[this.context.hintPathway])
             );
@@ -516,7 +517,7 @@ class ProblemCard extends React.Component {
                 }
             }
 
-                // Bottom out hints option
+            // Bottom out hints option
             if (
                 this.giveStuBottomHint
             ) {
@@ -552,7 +553,7 @@ class ProblemCard extends React.Component {
                     return null;
                 });
             }
-        
+
             this.setState({
                 hints: this.hints,
                 giveDynamicHint: false, // Switch to manual hints
@@ -560,8 +561,8 @@ class ProblemCard extends React.Component {
                 dynamicHint: "Failed to generate AI hint. Displaying manual hints.",
                 hintsFinished: new Array(this.hints.length).fill(0),
             });
-        };            
-    
+        };
+
         // Call ChatGPT to fetch the dynamic hint using streaming
         fetchDynamicHint(
             DYNAMIC_HINT_URL,
@@ -580,7 +581,7 @@ class ProblemCard extends React.Component {
             ),
             this.context
         );
-    
+
         // TODO: Update firebase logging to log when
         // 1. The dynamic hint is opened
         // 2. The regenerate button is clicked
@@ -607,7 +608,7 @@ class ProblemCard extends React.Component {
             this.state.bioInfo
         );
     };
-        
+
 
     render() {
         const { translate } = this.props;
@@ -784,28 +785,28 @@ class ProblemCard extends React.Component {
                             >
                                 {(!this.showCorrectness ||
                                     !this.allowRetry) && (
-                                    <img
-                                        className={classes.checkImage}
-                                        style={{
-                                            opacity:
-                                                this.state.isCorrect == null
-                                                    ? 0
-                                                    : 1,
-                                            width: "45%",
-                                        }}
-                                        alt="Exclamation Mark Icon"
-                                        title={`The instructor has elected to ${joinList(
-                                            !this.showCorrectness &&
+                                        <img
+                                            className={classes.checkImage}
+                                            style={{
+                                                opacity:
+                                                    this.state.isCorrect == null
+                                                        ? 0
+                                                        : 1,
+                                                width: "45%",
+                                            }}
+                                            alt="Exclamation Mark Icon"
+                                            title={`The instructor has elected to ${joinList(
+                                                !this.showCorrectness &&
                                                 "hide correctness",
-                                            !this.allowRetry &&
+                                                !this.allowRetry &&
                                                 "disallow retries"
-                                        )}`}
-                                        {...stagingProp({
-                                            "data-selenium-target": `step-correct-img-${this.props.index}`,
-                                        })}
-                                        src={`${process.env.PUBLIC_URL}/static/images/icons/exclamation.svg`}
-                                    />
-                                )}
+                                            )}`}
+                                            {...stagingProp({
+                                                "data-selenium-target": `step-correct-img-${this.props.index}`,
+                                            })}
+                                            src={`${process.env.PUBLIC_URL}/static/images/icons/exclamation.svg`}
+                                        />
+                                    )}
                                 {this.state.isCorrect &&
                                     this.showCorrectness &&
                                     this.allowRetry && (

@@ -51,11 +51,11 @@ class HintTextbox extends React.Component {
             questionText: this.hint.text
         });
 
-        if (parsed == '') {
+        if (parsed === '') {
             toastNotifyEmpty(this.translate)
             return;
         }
-        
+
         this.props.submitHint(parsed, this.hint, correctAnswer, this.props.hintNum);
 
         const isCorrect = !!correctAnswer
@@ -106,34 +106,34 @@ class HintTextbox extends React.Component {
                 />
 
                 <Grid container spacing={0} justifyContent="center" alignItems="center">
-                    <Grid item xs={false} sm={false} md={4}/>
+                    <Grid item xs={false} sm={false} md={4} />
                     <Grid item xs={4} sm={4} md={1}>
                         {this.props.type !== "subHintTextbox" && this.hint.subHints !== undefined ?
                             <center>
                                 <IconButton aria-label="delete" onClick={this.props.toggleHints}
-                                            title="View available hints"
-                                            disabled={(use_expanded_view && debug)}
-                                            {...stagingProp({
-                                                "data-selenium-target": `hint-button-${hintIndex}`
-                                            })}
+                                    title="View available hints"
+                                    disabled={(use_expanded_view && debug)}
+                                    {...stagingProp({
+                                        "data-selenium-target": `hint-button-${hintIndex}`
+                                    })}
                                 >
                                     <img src={`${process.env.PUBLIC_URL}/static/images/icons/raise_hand.png`}
-                                         alt="hintToggle"/>
+                                        alt="hintToggle" />
                                 </IconButton>
                             </center> :
                             <img src={'/static/images/icons/raise_hand.png'}
-                                 alt="hintToggle"
-                                 style={{ visibility: "hidden" }}/>
+                                alt="hintToggle"
+                                style={{ visibility: "hidden" }} />
                         }
                     </Grid>
                     <Grid item xs={4} sm={4} md={2}>
                         <center>
                             <Button className={classes.button} style={{ width: "80%" }} size="small"
-                                    onClick={this.submit}
-                                    disabled={(use_expanded_view && debug) || (!this.allowRetry && problemAttempted)}
-                                    {...stagingProp({
-                                        "data-selenium-target": `submit-button-${hintIndex}`
-                                    })}
+                                onClick={this.submit}
+                                disabled={(use_expanded_view && debug) || (!this.allowRetry && problemAttempted)}
+                                {...stagingProp({
+                                    "data-selenium-target": `submit-button-${hintIndex}`
+                                })}
                             >
                                 {translate('problem.Submit')}
                             </Button>
@@ -154,7 +154,7 @@ class HintTextbox extends React.Component {
                                     {...stagingProp({
                                         "data-selenium-target": `step-correct-img-${hintIndex}`
                                     })}
-                                    src={`${process.env.PUBLIC_URL}/static/images/icons/exclamation.svg`}/>
+                                    src={`${process.env.PUBLIC_URL}/static/images/icons/exclamation.svg`} />
                             }
                             {this.state.isCorrect && this.showCorrectness && this.allowRetry &&
                                 <img className={classes.checkImage}
@@ -163,7 +163,7 @@ class HintTextbox extends React.Component {
                                     {...stagingProp({
                                         "data-selenium-target": `step-correct-img-${hintIndex}`
                                     })}
-                                    src={`${process.env.PUBLIC_URL}/static/images/icons/green_check.svg`}/>
+                                    src={`${process.env.PUBLIC_URL}/static/images/icons/green_check.svg`} />
                             }
                             {this.state.isCorrect === false && this.showCorrectness && this.allowRetry &&
                                 <img className={classes.checkImage}
@@ -172,11 +172,11 @@ class HintTextbox extends React.Component {
                                     {...stagingProp({
                                         "data-selenium-target": `step-correct-img-${hintIndex}`
                                     })}
-                                    src={`${process.env.PUBLIC_URL}/static/images/icons/error.svg`}/>
+                                    src={`${process.env.PUBLIC_URL}/static/images/icons/error.svg`} />
                             }
                         </div>
                     </Grid>
-                    <Grid item xs={false} sm={1} md={4}/>
+                    <Grid item xs={false} sm={1} md={4} />
                 </Grid>
 
             </div>

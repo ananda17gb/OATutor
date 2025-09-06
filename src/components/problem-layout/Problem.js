@@ -38,14 +38,14 @@ import About from '../../pages/Posts/About.js';
 class Problem extends React.Component {
     static defaultProps = {
         autoScroll: true
-      };
+    };
     static contextType = ThemeContext;
 
     constructor(props, context) {
         super(props);
 
         const { setLanguage } = props;
-        if (props.lesson.courseName == "Matematik 4") {
+        if (props.lesson.courseName === "Matematik 4") {
             setLanguage('se')
         }
 
@@ -372,18 +372,18 @@ class Problem extends React.Component {
             showFeedback: !prevState.showFeedback,
         }));
     };
-    
+
     togglePopup = () => {
         console.log("Toggling popup visibility");
         this.setState((prevState) => ({
-          showPopup: !prevState.showPopup,
+            showPopup: !prevState.showPopup,
         }));
     };
 
     _getNextDebug = (offset) => {
         return (
             this.context.problemIDs[
-                this.context.problemIDs.indexOf(this.props.problem.id) + offset
+            this.context.problemIDs.indexOf(this.props.problem.id) + offset
             ] || "/"
         );
     };
@@ -393,17 +393,17 @@ class Problem extends React.Component {
         var oerArray, licenseArray;
         var oerLink, oerName;
         var licenseLink, licenseName;
-	try {
-        if (problem.oer != null && problem.oer.includes(" <")) {
-            oerArray = problem.oer.split(" <");
-        } else if (lesson.courseOER != null && lesson.courseOER.includes(" ")) {
-            oerArray = lesson.courseOER.split(" <");
-        } else {
+        try {
+            if (problem.oer != null && problem.oer.includes(" <")) {
+                oerArray = problem.oer.split(" <");
+            } else if (lesson.courseOER != null && lesson.courseOER.includes(" ")) {
+                oerArray = lesson.courseOER.split(" <");
+            } else {
+                oerArray = ["", ""];
+            }
+        } catch (error) {
             oerArray = ["", ""];
         }
-	} catch(error) {
-		oerArray = ["", ""];
-	}
 
         oerLink = oerArray[0];
         oerName = oerArray[1].substring(0, oerArray[1].length - 1);
@@ -419,7 +419,7 @@ class Problem extends React.Component {
             } else {
                 licenseArray = ["", ""];
             }
-        } catch(error) {
+        } catch (error) {
             licenseArray = ["", ""];
         }
         licenseLink = licenseArray[0];
@@ -548,14 +548,14 @@ class Problem extends React.Component {
                                                 (this.context.needRefresh = true)
                                             }
                                         >
-                                           {translate('problem.NextProblem')}
+                                            {translate('problem.NextProblem')}
                                         </Button>
                                     </NavLink>
                                 </Grid>
                                 <Grid item xs={2} key={4} />
                             </Grid>
                         ) : (
-                            
+
                             <Grid container spacing={0}>
                                 <Grid item xs={3} sm={3} md={5} key={1} />
                                 <Grid item xs={6} sm={6} md={2} key={2}>
@@ -609,21 +609,21 @@ class Problem extends React.Component {
                                 </div>
                             ) : (
                                 <div>
-                                {oerName !== "" && oerLink !== "" ? (
-                                <div>
-                                    "{problem.title}" {translate('problem.Derivative')}&nbsp;
-                                    <a
-                                        href={oerLink}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                    >
-                                        "{oerName}"
-                                    </a>
+                                    {oerName !== "" && oerLink !== "" ? (
+                                        <div>
+                                            "{problem.title}" {translate('problem.Derivative')}&nbsp;
+                                            <a
+                                                href={oerLink}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                "{oerName}"
+                                            </a>
+                                        </div>
+                                    ) : (
+                                        <></>
+                                    )}
                                 </div>
-                            ) : (
-                                <></>
-                            )}
-                            </div>
                             )}
                         </div>
                         <div

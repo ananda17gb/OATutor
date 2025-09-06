@@ -25,7 +25,7 @@ import {
 
 const problemSubmissionsOutput = "problemSubmissions";
 const problemStartLogOutput = "problemStartLogs";
-const GPTExperimentOutput = "GPTExperimentOutput";
+// const GPTExperimentOutput = "GPTExperimentOutput";
 const feedbackOutput = "feedbacks";
 const siteLogOutput = "siteLogs";
 const focusStatus = "focusStatus";
@@ -145,31 +145,31 @@ class Firebase {
 
             ...(process.env.REACT_APP_STUDY_ID
                 ? {
-                      study_id: process.env.REACT_APP_STUDY_ID,
-                  }
+                    study_id: process.env.REACT_APP_STUDY_ID,
+                }
                 : {}),
 
             ...(!isArrayElement
                 ? {
-                      server_time: serverTimestamp(),
-                  }
+                    server_time: serverTimestamp(),
+                }
                 : {}),
 
             ...(this.ltiContext?.user_id
                 ? {
-                      course_id: this.ltiContext.course_id,
-                      course_name: this.ltiContext.course_name,
-                      course_code: this.ltiContext.course_code,
+                    course_id: this.ltiContext.course_id,
+                    course_name: this.ltiContext.course_name,
+                    course_code: this.ltiContext.course_code,
 
-                      lms_user_id: this.ltiContext.user_id,
-                  }
+                    lms_user_id: this.ltiContext.user_id,
+                }
                 : {
-                      course_id: "n/a",
-                      course_name: "n/a",
-                      course_code: "n/a",
+                    course_id: "n/a",
+                    course_name: "n/a",
+                    course_code: "n/a",
 
-                      lms_user_id: "n/a",
-                  }),
+                    lms_user_id: "n/a",
+                }),
 
             ...data,
         };
@@ -285,8 +285,8 @@ class Firebase {
             lesson,
             knowledgeComponents: step?.knowledgeComponents,
             hintType,
-            dynamicHint,
-            bioInfo,
+            // dynamicHint,
+            // bioInfo,
         };
         // return this.writeData(GPTExperimentOutput, data);
         return this.writeData(problemSubmissionsOutput, data);
@@ -299,13 +299,13 @@ class Firebase {
                 !(
                     Math.abs(
                         payload.position.x -
-                            this.mouseLogBuffer[this.mouseLogBuffer.length - 1]
-                                .x
+                        this.mouseLogBuffer[this.mouseLogBuffer.length - 1]
+                            .x
                     ) > GRANULARITY ||
                     Math.abs(
                         payload.position.y -
-                            this.mouseLogBuffer[this.mouseLogBuffer.length - 1]
-                                .y
+                        this.mouseLogBuffer[this.mouseLogBuffer.length - 1]
+                            .y
                     ) > GRANULARITY
                 )
             ) {
