@@ -12,10 +12,11 @@ const to = require("await-to-js").default;
 const firebaseAdmin = require("firebase-admin");
 const { getFirestore } = require("firebase-admin/firestore");
 const serverless = require("serverless-http");
-const serviceAccount = require("./oatutor-ta-firebase-adminsdk-fbsvc-580f01c79f.json");
+const serviceAccount = require("./oatutor-firebase-adminsdk.json");
 // NOTE: Since I don't use AWS and use Vercel instead I will not use these two
 // const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 // const { DynamoDBDocumentClient, PutCommand, GetCommand } = require("@aws-sdk/lib-dynamodb");
+const { getAuth } = require("firebase-admin/auth");
 
 
 const consumerKeySecretMap = {
@@ -31,7 +32,10 @@ const consumerKeySecretMap = {
 };
 
 // const oatsHost = "https://cahlr.github.io/OATutor/#";
-const oatsHost = "https://oatutor.vercel.app/#";
+// const oatsHost = "https://oatutor.vercel.app/#";
+const oatsHost = "https://christopher-matter-result-slight.trycloudflare.com/#"
+
+
 const stagingHost = "https://cahlr.github.io/OATutor-Staging/#";
 const unlinkedPage = "assignment-not-linked";
 const alreadyLinkedPage = "assignment-already-linked";
@@ -183,6 +187,12 @@ const getJWT = (
     );
 };
 
+// NOTE: local development, can be commented or deleted for hosting
+const PORT = 3000;
+app.listen(PORT, () => {
+    console.log(`Example app listening on port ${PORT}`)
+})
+
 app.post("/launch", async (req, res) => {
     console.log("launch called");
     // console.log(req);
@@ -195,10 +205,8 @@ app.post("/launch", async (req, res) => {
     const consumer_secret = consumerKeySecretMap[consumer_key] || "";
     const provider = new lti.Provider(consumer_key, consumer_secret);
 
-
     provider.valid_request(req);
     console.log("lti provider initialized, populated");
-
 
     const privileged = provider.ta || provider.admin || provider.instructor;
     console.log("privileged: ", privileged);
@@ -214,6 +222,17 @@ app.post("/launch", async (req, res) => {
         linkedLesson,
         privileged
     );
+
+    const ltiUserId = provider.userId;
+    console.log("ltiUserId - index.js backend", { ltiUserId });
+
+    let firebaseCustomToken;
+    try {
+        firebaseCustomToken = await getAuth().createCustomToken(ltiUserId);
+        console.log("Firebase Custom Token created successfully");
+    } catch (error) {
+        console.error("Error creating Firebase Custom Token", error);
+    }
 
     if (provider.student || provider.prospective_student || provider.alumni) {
         // find lesson to send to iff it has been linked by an instructor
@@ -380,7 +399,7 @@ app.post(
         }
 
         // TODO: check if this works properly
-        const coursePlans = require("coursePlans.json");
+        const coursePlans = require("./coursePlans.json");
         const _coursePlansNoEditor = coursePlans.filter(({ editor }) => !!!editor);
         let lessonName = null;
 

@@ -47,6 +47,8 @@ import experimentalBKTParams from "./content-sources/oatutor/bkt-params/experime
 import { heuristic as defaultHeuristic } from "./models/BKT/problem-select-heuristics/defaultHeuristic.js";
 import { heuristic as experimentalHeuristic } from "./models/BKT/problem-select-heuristics/experimentalHeuristic.js";
 import BrowserStorage from "./util/browserStorage";
+import { doc, setDoc, updateDoc, collection, getDocs, deleteDoc, getDoc, deleteField } from 'firebase/firestore';
+import { getAuth, signInWithCustomToken } from 'firebase/auth';
 // ### END CUSTOMIZABLE IMPORTS ###
 
 loadFirebaseEnvConfig(config);
@@ -61,6 +63,7 @@ const queryParamToContext = {
     use_expanded_view: "use_expanded_view",
     do_not_restore: "noRestore",
     locale: "locale",
+    firebase_token: "firebaseToken"
 };
 
 const queryParamsToKeep = ["use_expanded_view", "to", "do_not_restore", "locale"];
@@ -90,7 +93,6 @@ class App extends React.Component {
             userId = generateRandomInt().toString();
             localStorage.setItem(USER_ID_STORAGE_KEY, userId);
         }
-        this.userID = userId;
         this.bktParams = this.getTreatmentObject(treatmentMapping.bktParams);
 
         this.originalBktParams = JSON.parse(
@@ -99,6 +101,7 @@ class App extends React.Component {
 
         this.state = {
             additionalContext: {},
+            userID: userId
         };
 
         if (IS_STAGING_OR_DEVELOPMENT) {
@@ -130,9 +133,30 @@ class App extends React.Component {
                 additionalContext["studentName"] = user.full_name;
             }
 
+            if (additionalContext?.firebaseToken) {
+                const auth = getAuth();
+                (async () => {
+                    try {
+                        const userCredential = await signInWithCustomToken(auth, additionalContext.firebaseToken);
+                        const firebaseUser = userCredential.user;
+                        console.log("Firebase sign-in successful:", firebaseUser.uid);
+                        this.setState({
+                            userID: firebaseUser.uid,
+                            additionalContext: {
+                                ...additionalContext,
+                                firebaseUser,
+                            }
+                        })
+                    } catch (error) {
+                        console.error("Firebase custom token sign-in failed:", error);
+                        toast.error("Failed to authenticate with Firebase.")
+                    }
+                })
+            }
+
             // Firebase creation
             this.firebase = new Firebase(
-                this.userID,
+                this.state.userID,
                 config,
                 this.getTreatment(),
                 SITE_VERSION,
@@ -194,7 +218,7 @@ class App extends React.Component {
     }
 
     getTreatment = () => {
-        return this.userID % 2;
+        return this.state.userID % 2;
     };
 
     getTreatmentObject = (targetObject) => {
@@ -205,6 +229,8 @@ class App extends React.Component {
     };
 
     removeProgress = async () => {
+
+        //localforage
         const { getKeys, removeByKey } = this.browserStorage;
         await removeByKey(PROGRESS_STORAGE_KEY);
         const existingKeys = (await getKeys()) || [];
@@ -214,11 +240,34 @@ class App extends React.Component {
         await Promise.allSettled(
             lessonStorageKeys.map(async (key) => await removeByKey(key))
         );
+
+        //firebase
+        const firebase = this.firebase;
+        const userId = this.state.userID;
+        console.log("removeProgress - App.js", {
+            userId,
+        });
+        if (userId) {
+            try {
+                const userRef = doc(firebase.db, 'users', userId);
+                await updateDoc(userRef, {
+                    bktParams: deleteField()
+                });
+
+                const lessonRef = collection(firebase.db, 'users', userId, 'lessons');
+                const querySnapshot = await getDocs(lessonRef);
+                await Promise.all(querySnapshot.docs.map((d) => deleteDoc(d.ref)));
+                console.debug("Removed all progress from Firebase successfully");
+            } catch (error) {
+                console.error("Error removing progress from Firebase:", error);
+            }
+        }
+
         this.bktParams = this.getTreatmentObject(treatmentMapping.bktParams);
         window.location.reload();
     };
 
-    saveProgress = () => {
+    saveProgress = async () => {
         console.debug("saving progress");
 
         const progressedBktParams = Object.fromEntries(
@@ -230,6 +279,8 @@ class App extends React.Component {
                 );
             })
         );
+
+        //localforage
         const { setByKey } = this.browserStorage;
         setByKey(PROGRESS_STORAGE_KEY, progressedBktParams, (err) => {
             if (err) {
@@ -240,10 +291,50 @@ class App extends React.Component {
             } else {
                 console.debug("saved progress successfully");
             }
-        }).then((_) => {});
+        }).then((_) => { });
+
+        //firebase
+        const firebase = this.firebase;
+        const userId = this.state.userID;
+
+        if (userId) {
+            try {
+                const bktProgressRef = doc(firebase.db, 'users', userId);
+                await setDoc(bktProgressRef, { bktParams: progressedBktParams }, { merge: true });
+                console.debug("Saved progress to Firebase successfully");
+            } catch (error) {
+                console.error("Error saving progress to Firebase:", error);
+                toast.warn("Unable to sync progress to the cloud :(", {
+                    toastId: "unable_to_sync_progress",
+                });
+
+            }
+        }
     };
 
     loadBktProgress = async () => {
+        //firebase
+        const firebase = this.firebase;
+        const userId = this.state.userID;
+        console.log("loadBKTProress - App.js", {
+            userId,
+        });
+        if (userId) {
+            try {
+                const bktProgressRef = doc(firebase.db, 'users', userId);
+                const docSnap = await getDoc(bktProgressRef);
+                if (docSnap.exists() && docSnap.data().bktParams) {
+                    const cloudProgress = docSnap.data().bktParams;
+                    console.debug("Restored BKT progress from cloud:", cloudProgress);
+                    Object.assign(this.bktParams, cleanObjectKeys(cloudProgress));
+                    return;
+                }
+            } catch (error) {
+                console.debug("Error getting BKT progress from cloud:", error);
+            }
+        }
+
+        //localforage
         const { getByKey } = this.browserStorage;
         const progress = await getByKey(PROGRESS_STORAGE_KEY).catch((_e) => {
             console.debug("error with getting previous progress", _e);
@@ -274,7 +365,7 @@ class App extends React.Component {
             <ThemeProvider theme={theme}>
                 <ThemeContext.Provider
                     value={{
-                        userID: this.userID,
+                        userID: this.state.userID,
                         firebase: this.firebase,
                         getTreatment: this.getTreatment,
                         bktParams: this.bktParams,
@@ -297,148 +388,148 @@ class App extends React.Component {
                         browserStorage: this.browserStorage,
                     }}
                 >
-                <LocalizationProvider>
-                    <GlobalErrorBoundary>
-                        <Router>
-                            <div className="Router">
-                                <Switch>
-                                    <Route
-                                        exact
-                                        path="/"
-                                        render={(props) => (
-                                            <Platform
-                                                key={Date.now()}
-                                                saveProgress={() =>
-                                                    this.saveProgress()
-                                                }
-                                                loadBktProgress={
-                                                    this.loadBktProgress
-                                                }
-                                                removeProgress={
-                                                    this.removeProgress
-                                                }
-                                                {...props}
-                                            />
-                                        )}
-                                    />
-                                    <Route
-                                        path="/courses/:courseNum"
-                                        render={(props) => (
-                                            <Platform
-                                                key={Date.now()}
-                                                saveProgress={() =>
-                                                    this.saveProgress()
-                                                }
-                                                loadBktProgress={
-                                                    this.loadBktProgress
-                                                }
-                                                removeProgress={
-                                                    this.removeProgress
-                                                }
-                                                courseNum={
-                                                    props.match.params.courseNum
-                                                }
-                                                {...props}
-                                            />
-                                        )}
-                                    />
-                                    <Route
-                                      exact
-                                      path="/lessons/:lessonID/problems"
-                                        component={ViewAllProblems}
-                                       />
-                                    <Route
-                                    exact
-                                        path="/lessons/:lessonID"
-                                        render={(props) => (
-                                            <Platform
-                                                key={Date.now()}
-                                                saveProgress={() =>
-                                                    this.saveProgress()
-                                                }
-                                                loadBktProgress={
-                                                    this.loadBktProgress
-                                                }
-                                                removeProgress={
-                                                    this.removeProgress
-                                                }
-                                                lessonID={
-                                                    props.match.params.lessonID
-                                                }
-                                                {...props}
-                                            />
-                                        )}
-                                    />
-                                    <Route
-                                        path="/debug/:problemID"
-                                        render={(props) => (
-                                            <DebugPlatform
-                                                key={Date.now()}
-                                                saveProgress={() =>
-                                                    this.saveProgress()
-                                                }
-                                                loadBktProgress={
-                                                    this.loadBktProgress
-                                                }
-                                                removeProgress={
-                                                    this.removeProgress
-                                                }
-                                                problemID={
-                                                    props.match.params.problemID
-                                                }
-                                                {...props}
-                                            />
-                                        )}
-                                    />
-                                    <Route
-                                        path="/posts"
-                                        render={(props) => (
-                                            <Posts
-                                                key={Date.now()}
-                                                {...props}
-                                            />
-                                        )}
-                                    />
-                                    <Route
-                                        exact
-                                        path="/assignment-not-linked"
-                                        render={(props) => (
-                                            <AssignmentNotLinked
-                                                key={Date.now()}
-                                                {...props}
-                                            />
-                                        )}
-                                    />
-                                    <Route
-                                        exact
-                                        path="/assignment-already-linked"
-                                        render={(props) => (
-                                            <AssignmentAlreadyLinked
-                                                key={Date.now()}
-                                                {...props}
-                                            />
-                                        )}
-                                    />
-                                    <Route
-                                        exact
-                                        path="/session-expired"
-                                        render={(props) => (
-                                            <SessionExpired
-                                                key={Date.now()}
-                                                {...props}
-                                            />
-                                        )}
-                                    />
-                                    <Route component={NotFound} />
-                                </Switch>
-                            </div>
-                            {DO_FOCUS_TRACKING && <TabFocusTrackerWrapper />}
-                        </Router>
-                        <ToastContainer
-                            autoClose={false}
-                            closeOnClick={false}
-                        />
-                    </GlobalErrorBoundary>
+                    <LocalizationProvider>
+                        <GlobalErrorBoundary>
+                            <Router>
+                                <div className="Router">
+                                    <Switch>
+                                        <Route
+                                            exact
+                                            path="/"
+                                            render={(props) => (
+                                                <Platform
+                                                    key={Date.now()}
+                                                    saveProgress={() =>
+                                                        this.saveProgress()
+                                                    }
+                                                    loadBktProgress={
+                                                        this.loadBktProgress
+                                                    }
+                                                    removeProgress={
+                                                        this.removeProgress
+                                                    }
+                                                    {...props}
+                                                />
+                                            )}
+                                        />
+                                        <Route
+                                            path="/courses/:courseNum"
+                                            render={(props) => (
+                                                <Platform
+                                                    key={Date.now()}
+                                                    saveProgress={() =>
+                                                        this.saveProgress()
+                                                    }
+                                                    loadBktProgress={
+                                                        this.loadBktProgress
+                                                    }
+                                                    removeProgress={
+                                                        this.removeProgress
+                                                    }
+                                                    courseNum={
+                                                        props.match.params.courseNum
+                                                    }
+                                                    {...props}
+                                                />
+                                            )}
+                                        />
+                                        <Route
+                                            exact
+                                            path="/lessons/:lessonID/problems"
+                                            component={ViewAllProblems}
+                                        />
+                                        <Route
+                                            exact
+                                            path="/lessons/:lessonID"
+                                            render={(props) => (
+                                                <Platform
+                                                    key={Date.now()}
+                                                    saveProgress={() =>
+                                                        this.saveProgress()
+                                                    }
+                                                    loadBktProgress={
+                                                        this.loadBktProgress
+                                                    }
+                                                    removeProgress={
+                                                        this.removeProgress
+                                                    }
+                                                    lessonID={
+                                                        props.match.params.lessonID
+                                                    }
+                                                    {...props}
+                                                />
+                                            )}
+                                        />
+                                        <Route
+                                            path="/debug/:problemID"
+                                            render={(props) => (
+                                                <DebugPlatform
+                                                    key={Date.now()}
+                                                    saveProgress={() =>
+                                                        this.saveProgress()
+                                                    }
+                                                    loadBktProgress={
+                                                        this.loadBktProgress
+                                                    }
+                                                    removeProgress={
+                                                        this.removeProgress
+                                                    }
+                                                    problemID={
+                                                        props.match.params.problemID
+                                                    }
+                                                    {...props}
+                                                />
+                                            )}
+                                        />
+                                        <Route
+                                            path="/posts"
+                                            render={(props) => (
+                                                <Posts
+                                                    key={Date.now()}
+                                                    {...props}
+                                                />
+                                            )}
+                                        />
+                                        <Route
+                                            exact
+                                            path="/assignment-not-linked"
+                                            render={(props) => (
+                                                <AssignmentNotLinked
+                                                    key={Date.now()}
+                                                    {...props}
+                                                />
+                                            )}
+                                        />
+                                        <Route
+                                            exact
+                                            path="/assignment-already-linked"
+                                            render={(props) => (
+                                                <AssignmentAlreadyLinked
+                                                    key={Date.now()}
+                                                    {...props}
+                                                />
+                                            )}
+                                        />
+                                        <Route
+                                            exact
+                                            path="/session-expired"
+                                            render={(props) => (
+                                                <SessionExpired
+                                                    key={Date.now()}
+                                                    {...props}
+                                                />
+                                            )}
+                                        />
+                                        <Route component={NotFound} />
+                                    </Switch>
+                                </div>
+                                {DO_FOCUS_TRACKING && <TabFocusTrackerWrapper />}
+                            </Router>
+                            <ToastContainer
+                                autoClose={false}
+                                closeOnClick={false}
+                            />
+                        </GlobalErrorBoundary>
                     </LocalizationProvider>
                 </ThemeContext.Provider>
             </ThemeProvider>

@@ -13,6 +13,7 @@ import {
     SITE_NAME,
     ThemeContext,
     MASTERY_THRESHOLD,
+    USER_ID_STORAGE_KEY
 } from "../config/config.js";
 import to from "await-to-js";
 import { toast } from "react-toastify";
@@ -22,6 +23,7 @@ import { cleanArray } from "../util/cleanObject";
 import ErrorBoundary from "@components/ErrorBoundary";
 import { CONTENT_SOURCE } from "@common/global-config";
 import withTranslation from '../util/withTranslation';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 let problemPool = require(`@generated/processed-content-pool/${CONTENT_SOURCE}.json`);
 
@@ -39,6 +41,9 @@ class Platform extends React.Component {
         };
         this.completedProbs = new Set();
         this.lesson = null;
+
+        const { userID } = context;
+        this.userID = userID;
 
         this.user = context.user || {};
         console.debug("USER: ", this.user)
@@ -232,6 +237,29 @@ class Platform extends React.Component {
         this.lesson = lesson;
 
         const loadLessonProgress = async () => {
+            // firebase (cloud)
+            const firebase = this.context.firebase;
+            const userId = this.userID;
+            const lessonId = this.lesson.id;
+            console.log("📚 LoadLessonProgress - Platform.js", {
+                userId,
+                lessonId
+            });
+            try {
+                if (userId) {
+                    const progressRef = doc(firebase.db, 'users', userId, 'lessons', lessonId);
+                    const docSnap = await getDoc(progressRef);
+                    if (docSnap.exists()) {
+                        const cloudProgress = docSnap.data().completedProbs;
+                        console.debug("Restored lesson progress from cloud:", cloudProgress);
+                        return cloudProgress;
+                    }
+                }
+            } catch (error) {
+                console.error("Error loading lesson progress from cloud:", error);
+            }
+
+            // localforage (local)
             const { getByKey } = this.context.browserStorage;
             return await getByKey(
                 LESSON_PROGRESS_STORAGE_KEY(this.lesson.id)
@@ -377,6 +405,27 @@ class Platform extends React.Component {
 
     problemComplete = async (context) => {
         this.completedProbs.add(this.state.currProblem.id);
+
+        //firebase
+        const firebase = this.context.firebase;
+        const userId = this.userID;
+        const lessonId = this.lesson.id;
+        if (userId) {
+            try {
+                const progressRef = doc(firebase.db, 'users', userId, 'lessons', lessonId);
+                await setDoc(progressRef, { completedProbs: Array.from(this.completedProbs) }, { merge: true });
+            } catch (error) {
+                console.error("Error saving completed problem to Firebase:", error);
+                this.context.firebase.submitSiteLog("site-error", `componentName: Platform.js`, {
+                    errorName: error.name || "n/a",
+                    errorCode: error.code || "n/a",
+                    errorMsg: error.message || "n/a",
+                    errorStack: error.stack || "n/a",
+                }, this.state.currProblem.id);
+            }
+        }
+
+        // localforage
         const { setByKey } = this.context.browserStorage;
         await setByKey(
             LESSON_PROGRESS_STORAGE_KEY(this.lesson.id),

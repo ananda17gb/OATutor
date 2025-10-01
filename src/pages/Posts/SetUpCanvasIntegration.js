@@ -73,7 +73,8 @@ const SetUpCanvasIntegration = () => {
         </>}
         <div className={classes.fullWidth}>
             <span
-                className={classes.unselectable}>Config URL: </span><code>https://oatutor.vercel.app/{SITE_NAME}/lti-consumer-config.xml</code>
+                // change this if cloudflare resets (frontend)
+                className={classes.unselectable}>Config URL: </span><code>https://campus-topic-physical-pam.trycloudflare.com/{SITE_NAME}/lti-consumer-config.xml</code>
         </div>
         <div className={clsx(classes.fullWidth, classes.textCenter, classes["p-8"])}>
             <ZoomImage

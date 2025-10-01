@@ -85,8 +85,9 @@ const EQUATION_EDITOR_AUTO_COMMANDS =
     "pi theta sqrt sum prod int alpha beta gamma rho nthroot pm";
 const EQUATION_EDITOR_AUTO_OPERATORS = "sin cos tan";
 
+// change this if cloudflare resets (backend)
 const MIDDLEWARE_URL =
-    "https://oatutor.vercel.app";
+    "https://capture-assignments-headset-potential.trycloudflare.com";
 
 const HELP_DOCUMENT =
     "https://docs.google.com/document/d/e/2PACX-1vToe2F3RiCx1nwcX9PEkMiBA2bFy9lQRaeWIbyqlc8W_KJ9q-hAMv34QaO_AdEelVY7zjFAF1uOP4pG/pub";
