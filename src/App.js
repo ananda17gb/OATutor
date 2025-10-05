@@ -87,11 +87,23 @@ if (!AB_TEST_MODE) {
 class App extends React.Component {
     constructor(props) {
         super(props);
-        // UserID creation/loading
-        let userId = localStorage.getItem(USER_ID_STORAGE_KEY);
+        // UserID creation
+        let userId = null;
         if (!userId) {
-            userId = generateRandomInt().toString();
-            localStorage.setItem(USER_ID_STORAGE_KEY, userId);
+            const search = window.location.search || window.location.hash.substr(window.location.hash.indexOf("?") + 1);
+            const sp = new URLSearchParams(search);
+            const jwt = sp.get("token");
+            if (jwt) {
+                const user = parseJwt(jwt);
+                userId = user?.sub || user?.user_id || null;
+            }
+        }
+        if (!userId) {
+            let userId = localStorage.getItem(USER_ID_STORAGE_KEY);
+            if (!userId) {
+                userId = generateRandomInt().toString();
+                localStorage.setItem(USER_ID_STORAGE_KEY, userId);
+            }
         }
         this.bktParams = this.getTreatmentObject(treatmentMapping.bktParams);
 
@@ -151,7 +163,7 @@ class App extends React.Component {
                         console.error("Firebase custom token sign-in failed:", error);
                         toast.error("Failed to authenticate with Firebase.")
                     }
-                })
+                })();
             }
 
             // Firebase creation
@@ -162,6 +174,12 @@ class App extends React.Component {
                 SITE_VERSION,
                 additionalContext.user
             );
+
+
+            const auth = getAuth();
+            if (auth.currentUser) {
+                userId = auth.currentUser.uid;
+            }
 
             let targetLocation = window.location.href.split("?")[0];
 
@@ -300,7 +318,7 @@ class App extends React.Component {
         if (userId) {
             try {
                 const bktProgressRef = doc(firebase.db, 'users', userId);
-                await setDoc(bktProgressRef, { bktParams: progressedBktParams }, { merge: true });
+                await setDoc(bktProgressRef, { bktParams: progressedBktParams, studentName: this.state.additionalContext?.studentName || "" }, { merge: true });
                 console.debug("Saved progress to Firebase successfully");
             } catch (error) {
                 console.error("Error saving progress to Firebase:", error);

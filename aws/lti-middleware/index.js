@@ -33,7 +33,7 @@ const consumerKeySecretMap = {
 
 // const oatsHost = "https://cahlr.github.io/OATutor/#";
 // const oatsHost = "https://oatutor.vercel.app/#";
-const oatsHost = "https://christopher-matter-result-slight.trycloudflare.com/#"
+const oatsHost = "https://bloom-associates-oils-parents.trycloudflare.com/#"
 
 
 const stagingHost = "https://cahlr.github.io/OATutor-Staging/#";
@@ -54,13 +54,17 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// middleware to allow relaxed CORs
+// middleware to allow relaxed CORS
 app.use((req, res, next) => {
     res.header("Access-Control-Allow-Origin", "*");
     res.header(
         "Access-Control-Allow-Headers",
-        "Origin, X-Requested-With, Content-Type, Accept"
+        "Origin, X-Requested-With, Content-Type, Accept, Authorization"
     );
+    res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(200);
+    }
     next();
 });
 
@@ -577,9 +581,8 @@ app.post(
         ${formattedText}
     `;
 
-        provider.outcome_service.send_replace_result_with_text(
+        provider.outcome_service.send_replace_result(
             score,
-            text,
             (err, result) => {
                 if (err || !result) {
                     console.debug("was unable to send result to your LMS", err);
