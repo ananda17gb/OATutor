@@ -87,7 +87,7 @@ const EQUATION_EDITOR_AUTO_OPERATORS = "sin cos tan";
 
 // change this if cloudflare resets (backend)
 const MIDDLEWARE_URL =
-    "https://memphis-formula-deutsch-kid.trycloudflare.com";
+    "https://federation-tomatoes-third-heel.trycloudflare.com";
 
 const HELP_DOCUMENT =
     "https://docs.google.com/document/d/e/2PACX-1vToe2F3RiCx1nwcX9PEkMiBA2bFy9lQRaeWIbyqlc8W_KJ9q-hAMv34QaO_AdEelVY7zjFAF1uOP4pG/pub";
@@ -97,7 +97,8 @@ const DYNAMIC_HINT_URL = process.env.AI_HINT_GENERATION_AWS_ENDPOINT;
 const DYNAMIC_HINT_TEMPLATE =
     "<{problem_title}.> <{problem_subtitle}.> <{question_title}.> <{question_subtitle}.> <Student's answer is: {student_answer}.> <The correct answer is: {correct_answer}.> Please give a hint for this.";
 
-const MASTERY_THRESHOLD = 0.95;
+// const MASTERY_THRESHOLD = 0.95;
+const MASTERY_THRESHOLD = 1.0;
 // const coursePlans = courses.sort((a, b) => a.courseName.localeCompare(b.courseName));
 const coursePlans = courses;
 const _coursePlansNoEditor = coursePlans.filter(({ editor }) => !!!editor);

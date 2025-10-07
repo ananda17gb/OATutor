@@ -132,7 +132,7 @@ class Platform extends React.Component {
 
     async selectLesson(lesson, updateServer = true) {
         const context = this.context;
-        console.debug("lesson: ", context)
+        console.debug("lesson: ", lesson)
         console.debug("update server: ", updateServer)
         console.debug("context: ", context)
         if (!this._isMounted) {
@@ -235,6 +235,7 @@ class Platform extends React.Component {
         }
 
         this.lesson = lesson;
+        this.context.currentLesson = lesson.id; // 🧩 Add this line
 
         const loadLessonProgress = async () => {
             // firebase (cloud)
@@ -281,6 +282,25 @@ class Platform extends React.Component {
             );
             this.completedProbs = new Set(prevCompletedProbs);
         }
+
+        // Handle students who already completed the lesson
+        if (!this.isPrivileged && this.lesson && this.context.bktParams) {
+            const objectives = Object.keys(this.lesson.learningObjectives);
+            let score = objectives.reduce(
+                (sum, skill) => sum + (this.context.bktParams[skill]?.probMastery || 0),
+                0
+            );
+            score /= objectives.length;
+
+            if (score >= MASTERY_THRESHOLD) {
+                console.log("Lesson already completed — redirecting to finish page");
+                if (this.props.history && this._isMounted) {
+                    this.props.history.push("/assignment-finished");
+                }
+                return;
+            }
+        }
+
         this.setState(
             {
                 currProblem: this._nextProblem(
@@ -451,7 +471,16 @@ class Platform extends React.Component {
         if (mastery >= MASTERY_THRESHOLD) {
             toast.success("You've successfully completed this assignment!", {
                 toastId: ToastID.successfully_completed_lesson.toString(),
+                autoClose: 3000,
+                closeOnClick: true,
+                pauseOnHover: false,
             });
+
+            setTimeout(() => {
+                if (this.props.history && this._isMounted) {
+                    this.props.history.push("/assignment-finished");
+                }
+            }, 3500);
         }
     };
 
@@ -469,7 +498,7 @@ class Platform extends React.Component {
                     flexDirection: "column",
                 }}
             >
-                <AppBar position="static">
+                <AppBar position="sticky" style={{ top: 0, zIndex: 1000 }}>
                     <Toolbar>
                         <Grid
                             container

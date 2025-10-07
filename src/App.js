@@ -29,6 +29,7 @@ import "react-toastify/dist/ReactToastify.css";
 import parseJwt from "./util/parseJWT";
 import AssignmentNotLinked from "./pages/AssignmentNotLinked";
 import AssignmentAlreadyLinked from "./pages/AssignmentAlreadyLinked";
+import AssignmentFinished from "./pages/AssignmentFinished";
 import SessionExpired from "./pages/SessionExpired";
 import { Posts } from "./pages/Posts/Posts";
 import loadFirebaseEnvConfig from "./util/loadFirebaseEnvConfig";
@@ -523,6 +524,16 @@ class App extends React.Component {
                                             path="/assignment-already-linked"
                                             render={(props) => (
                                                 <AssignmentAlreadyLinked
+                                                    key={Date.now()}
+                                                    {...props}
+                                                />
+                                            )}
+                                        />
+                                        <Route
+                                            exact
+                                            path="/assignment-finished"
+                                            render={(props) => (
+                                                <AssignmentFinished
                                                     key={Date.now()}
                                                     {...props}
                                                 />

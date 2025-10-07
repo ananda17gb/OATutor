@@ -17,6 +17,7 @@ const serviceAccount = require("./oatutor-firebase-adminsdk.json");
 // const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 // const { DynamoDBDocumentClient, PutCommand, GetCommand } = require("@aws-sdk/lib-dynamodb");
 const { getAuth } = require("firebase-admin/auth");
+const cors = require("cors");
 
 
 const consumerKeySecretMap = {
@@ -33,7 +34,7 @@ const consumerKeySecretMap = {
 
 // const oatsHost = "https://cahlr.github.io/OATutor/#";
 // const oatsHost = "https://oatutor.vercel.app/#";
-const oatsHost = "https://bloom-associates-oils-parents.trycloudflare.com/#"
+const oatsHost = "https://hits-calculators-retrieved-archives.trycloudflare.com/#"
 
 
 const stagingHost = "https://cahlr.github.io/OATutor-Staging/#";
@@ -55,18 +56,16 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // middleware to allow relaxed CORS
-app.use((req, res, next) => {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header(
-        "Access-Control-Allow-Headers",
-        "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-    );
-    res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-    if (req.method === "OPTIONS") {
-      return res.sendStatus(200);
-    }
-    next();
-});
+app.use(cors({
+    origin: [
+        "https://hits-calculators-retrieved-archives.trycloudflare.com", // your frontend
+        "https://your-moodle-domain.com", // if you’ll use Moodle-hosted OATutor
+        "http://localhost:3000" // for local development
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    credentials: true,
+}));
 
 // trust that the reverse proxy has the correct protocol
 app.enable("trust proxy");
@@ -257,11 +256,11 @@ app.post("/launch", async (req, res) => {
         // privileged, let them assign a lesson to the canvas assignment
         if (!linkedLesson) {
             console.log("instructor, and not linked");
-            console.log(`${host}?token=${token}`)
+            // console.log(`${host}?token=${token}`)
             res.writeHead(302, { Location: `${host}?token=${token}` });
         } else {
             console.log("instructor, and linked");
-            console.log(`${host}/${alreadyLinkedPage}?token=${token}&to=${linkedLesson}`);
+            // console.log(`${host}/${alreadyLinkedPage}?token=${token}&to=${linkedLesson}`);
             res.writeHead(302, {
                 Location: `${host}/${alreadyLinkedPage}?token=${token}&to=${linkedLesson}`,
             });
@@ -327,6 +326,8 @@ app.post(
     async (req, res) => {
         console.log("======= setLesson called =======");
         const { user } = req;
+        console.log("REQ BODY:", req.body);
+        console.log("USER FROM JWT:", user);
 
         if (!user.privileged) {
             console.log("user not privileged");
@@ -386,6 +387,8 @@ app.post(
         getToken,
     }),
     async (req, res) => {
+        console.log("POST /postScore received body:", req.body);
+        console.log("Decoded JWT user:", req.user);
         console.log("======= postScore called =======");
         const { user = {}, body } = req;
         const { consumer_key, linkedLesson, user_id } = user;
@@ -589,6 +592,7 @@ app.post(
                     res.status(400).send("unable_to_handle_score").end();
                     return;
                 }
+                console.log("✅ Grade successfully sent to Moodle:", result);
 
                 res.status(200).end();
             }

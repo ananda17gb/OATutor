@@ -1,7 +1,8 @@
 import React, { useContext } from "react";
 import { SITE_NAME, SITE_VERSION, ThemeContext } from "../config/config";
-import { useHistory } from "react-router-dom";
-import { makeStyles } from "@material-ui/core";
+import { useHistory, useLocation } from "react-router-dom";
+import { makeStyles, Button } from "@material-ui/core";
+import ArrowBackIcon from "@material-ui/icons/ArrowBack";
 
 const useStyles = makeStyles({
     "siteNavLink": {
@@ -9,14 +10,21 @@ const useStyles = makeStyles({
         paddingTop: "3px",
         "&:hover": {
             cursor: "pointer"
-        }
-    }
+        },
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+    },
+    backButton: {
+        marginRight: "8px",
+        textTransform: "none",
+    },
 })
 
 function BrandLogoNav({ isPrivileged = false, noLink = false }) {
     const context = useContext(ThemeContext)
     const history = useHistory()
-
+    const location = useLocation();
     const classes = useStyles()
     const brandString = `${SITE_NAME} (v${SITE_VERSION})`
 
@@ -26,18 +34,45 @@ function BrandLogoNav({ isPrivileged = false, noLink = false }) {
         }
     }
 
+    const goBack = () => {
+        if (location.pathname.includes("lessonSelection")) {
+            history.push("/courseSelection");
+        } else {
+            history.goBack();
+        }
+    }
+
+    const hideBackButton =
+        location.pathname.includes("courseSelection") ||
+        location.pathname.includes("lessonSelection") ||
+        location.pathname === "/";
+
     return <>
         {/* specified to not link or was launched from lms as student*/}
-        {noLink || (context.jwt.length !== 0 && !isPrivileged)
-            ? <div style={{ textAlign: 'left', paddingTop: 6 }}>
-                {brandString}
-            </div>
-            :
-            <div role={"link"} tabIndex={0} onClick={navigateLink} onKeyDown={navigateLink}
-                 className={classes.siteNavLink}>
-                {brandString}
-            </div>
-        }
+        <div style={{ display: "flex", alignItems: "center" }}>
+            {isPrivileged && !hideBackButton && (
+                <Button
+                    color="inherit"
+                    size="small"
+                    onClick={goBack}
+                    className={classes.backButton}
+                    startIcon={<ArrowBackIcon />}
+                >
+                    Back
+                </Button>
+
+            )}
+            {noLink || (context.jwt.length !== 0 && !isPrivileged)
+                ? (<div style={{ textAlign: 'left', paddingTop: 6 }}>
+                    {brandString}
+                </div>)
+                :
+                (<div role={"link"} tabIndex={0} onClick={navigateLink} onKeyDown={navigateLink}
+                    className={classes.siteNavLink}>
+                    {brandString}
+                </div>)
+            }
+        </div>
     </>
 }
 

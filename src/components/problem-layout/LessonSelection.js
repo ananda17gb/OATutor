@@ -63,9 +63,36 @@ class LessonSelection extends React.Component {
         this.setState({ preparedRemoveProgress: true });
     }
 
+    componentDidMount() {
+        // Restore scroll position if we're on the course selection page
+        if (this.props.courseNum == null) {
+            sessionStorage.removeItem('courseScrollPosition');
+            const savedScroll = sessionStorage.getItem('courseScrollPosition');
+            if (savedScroll) {
+                window.scrollTo(0, parseInt(savedScroll, 10));
+            }
+        }
+
+        // Listen to history changes to restore scroll position on back
+        this.unlisten = this.props.history.listen((location, action) => {
+            if (action === 'POP' && location.pathname === '/') {
+                const savedScroll = sessionStorage.getItem('courseScrollPosition');
+                if (savedScroll) {
+                    window.scrollTo(0, parseInt(savedScroll, 10));
+                }
+            }
+        });
+    }
+
+    componentWillUnmount() {
+        if (this.unlisten) this.unlisten();
+    }
+
+
     render() {
         const { translate } = this.props;
         const { classes, courseNum } = this.props;
+        const currentCourse = this.coursePlans[courseNum];
         const selectionMode = courseNum == null ? "course" : "lesson"
         const { showPopup } = this.state;
 
@@ -96,6 +123,19 @@ class LessonSelection extends React.Component {
                                 {this.isPrivileged
                                     && <h4>(for {this.user.resource_link_title})</h4>
                                 }
+
+                                {selectionMode === "lesson" && currentCourse && (
+                                    <>
+                                        <Box mt={2} mb={2} p={2} bgcolor="#e3f2fd" borderRadius={8}>
+                                            <strong>Current Course:</strong> {currentCourse.courseName}
+                                        </Box>
+                                        {currentCourse.description && (
+                                            <p style={{ fontSize: 16, color: "#555" }}>
+                                                {currentCourse.description}
+                                            </p>
+                                        )}
+                                    </>
+                                )}
                                 {
                                     IS_STAGING_OR_DEVELOPMENT && <BuildTimeIndicator />
                                 }
@@ -117,7 +157,9 @@ class LessonSelection extends React.Component {
                                                             aria-roledescription={`Navigate to course ${i}'s page to view available lessons`}
                                                             role={"link"}
                                                             onClick={() => {
-                                                                this.props.history.push(`/courses/${i}`)
+                                                                sessionStorage.setItem('courseScrollPosition', window.scrollY);
+                                                                this.props.history.push(`/courses/${i}`);
+                                                                setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 0);
                                                             }}>
                                                             <img
                                                                 src={`${process.env.PUBLIC_URL}/static/images/icons/folder.png`}

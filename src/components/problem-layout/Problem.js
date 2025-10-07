@@ -105,6 +105,7 @@ class Problem extends React.Component {
     }
 
     updateCanvas = async (mastery, components) => {
+        console.debug("updateCanvas() called", { mastery, components, jwt: this.context.jwt });
         if (this.context.jwt) {
             console.debug("updating canvas with problem score");
 
@@ -122,6 +123,7 @@ class Problem extends React.Component {
                     }),
                 })
             );
+            console.debug("Response from /postScore:", response);
             if (err || !response) {
                 toast.error(
                     `An unknown error occurred trying to submit this problem. If reloading does not work, please contact us.`,
