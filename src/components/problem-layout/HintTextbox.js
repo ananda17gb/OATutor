@@ -6,7 +6,7 @@ import Button from '@material-ui/core/Button';
 import Grid from '@material-ui/core/Grid';
 import IconButton from '@material-ui/core/IconButton';
 import { chooseVariables } from '../../platform-logic/renderText.js';
-import { ThemeContext } from '../../config/config.js';
+import { ThemeContext, MIDDLEWARE_URL } from '../../config/config.js';
 import ProblemInput from "../problem-input/ProblemInput";
 import { stagingProp } from "../../util/addStagingProperty";
 import { toastNotifyCorrectness } from "./ToastNotifyCorrectness";
@@ -32,6 +32,8 @@ class HintTextbox extends React.Component {
             isCorrect: context.use_expanded_view && context.debug ? true : null,
             checkMarkOpacity: context.use_expanded_view && context.debug ? '100' : '0',
             showHints: false,
+            isExecutingCode: false,
+            output: "",
         }
     }
 
@@ -54,6 +56,42 @@ class HintTextbox extends React.Component {
         if (parsed === '') {
             toastNotifyEmpty(this.translate)
             return;
+        }
+
+        if (this.props.hint.hintType === "code") {
+            this.setState({ isExecutingCode: true });
+
+            const { language, version, filename, expectedOutput } = this.props.hint;
+
+            // change 192.168.0.3 to whatever ip that will be used later
+            fetch(`${MIDDLEWARE_URL}/api/piston/execute`, {
+                // fetch("https://emkc.org/api/v2/piston/execute", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    language,
+                    version,
+                    files: [{ name: filename, content: this.state.inputVal }]
+                })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    const output = data.run.stdout || data.run.stderr || "";
+                    // const isCorrect = output.trim() === (expectedOutput || "").trim();
+                    const isCorrect = output.trim().replace(/\r\n/g, "\n") === expectedOutput.trim().replace(/\r\n/g, "\n");
+
+                    toastNotifyCorrectness(isCorrect, null, this.translate);
+
+                    this.setState({ isCorrect, checkMarkOpacity: isCorrect ? '100' : '0', output, isExecutingCode: false });
+                    this.props.submitHint(this.state.inputVal, this.props.hint, isCorrect, this.props.hintNum);
+                })
+                .catch(err => {
+                    console.error(err);
+                    this.setState({ output: "Error executing code.", isExecutingCode: false });
+                })
+                .finally(() => this.setState({ isExecutingCode: false }));
+
+            return; // exit normal hint submission
         }
 
         this.props.submitHint(parsed, this.hint, correctAnswer, this.props.hintNum);
@@ -80,7 +118,7 @@ class HintTextbox extends React.Component {
     render() {
         const { translate } = this.props;
         const { classes, index, hintNum } = this.props;
-        const { isCorrect } = this.state;
+        const { isCorrect, output } = this.state;
         const { debug, use_expanded_view } = this.context;
 
         const hintIndex = `${hintNum}-${index}`
@@ -104,6 +142,20 @@ class HintTextbox extends React.Component {
                     handleKey={this.handleKey}
                     index={hintIndex}
                 />
+
+                {output && (
+                    <div style={{
+                        margin: "16px 0",
+                        padding: "12px",
+                        border: "1px solid #ddd",
+                        borderRadius: "4px"
+                    }}>
+                        <strong style={{ display: "block", marginBottom: "8px", fontSize: "14px" }}>Output:</strong>
+                        <pre className="code-output">
+                            {output}
+                        </pre>
+                    </div>
+                )}
 
                 <Grid container spacing={0} justifyContent="center" alignItems="center">
                     <Grid item xs={false} sm={false} md={4} />
@@ -130,7 +182,7 @@ class HintTextbox extends React.Component {
                         <center>
                             <Button className={classes.button} style={{ width: "80%" }} size="small"
                                 onClick={this.submit}
-                                disabled={(use_expanded_view && debug) || (!this.allowRetry && problemAttempted)}
+                                disabled={this.state.isExecutingCode || (use_expanded_view && debug) || (!this.allowRetry && problemAttempted)}
                                 {...stagingProp({
                                     "data-selenium-target": `submit-button-${hintIndex}`
                                 })}

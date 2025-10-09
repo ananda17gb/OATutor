@@ -12,6 +12,7 @@ import { shuffleArray } from "../../util/shuffleArray";
 import { EQUATION_EDITOR_AUTO_COMMANDS, EQUATION_EDITOR_AUTO_OPERATORS, ThemeContext } from "../../config/config";
 import { stagingProp } from "../../util/addStagingProperty";
 import { parseMatrixTex } from "../../util/parseMatrixTex";
+import Editor from "@monaco-editor/react";
 
 class ProblemInput extends React.Component {
     static contextType = ThemeContext;
@@ -24,7 +25,7 @@ class ProblemInput extends React.Component {
         this.mathFieldRef = React.createRef();
 
         this.onEquationChange = this.onEquationChange.bind(this)
-        
+
         this.state = {
             value: "",
             isMathFieldFocused: false,
@@ -53,34 +54,35 @@ class ProblemInput extends React.Component {
     componentDidUpdate(_, prevState) {
         if (prevState.isMathFieldFocused !== this.state.isMathFieldFocused && !this.state.isMathFieldFocused) {
             const mathField = this.mathFieldRef.current;
-        if (mathField) {
-            mathField.executeCommand('hideVirtualKeyboard');
-            console.log("componentDidUpdate hide keyboard")
-        }}
+            if (mathField) {
+                mathField.executeCommand('hideVirtualKeyboard');
+                console.log("componentDidUpdate hide keyboard")
+            }
+        }
     }
-    
+
     componentWillUnmount() {
         document.removeEventListener('click', this.handleClickOutside);
     }
-    
+
     handleFocus = () => {
         this.setState({ isMathFieldFocused: true });
         console.log('MathField is focused');
     };
-    
+
     handleBlur = () => {
         this.setState({ isMathFieldFocused: false });
         console.log('MathField lost focus');
     };
-    
+
     handleClickOutside = (event) => {
         const mathField = this.mathFieldRef.current;
         if (
-          mathField &&
-          !mathField.contains(event.target) &&
-          this.state.isMathFieldFocused
+            mathField &&
+            !mathField.contains(event.target) &&
+            this.state.isMathFieldFocused
         ) {
-          console.log('Clicked outside keyboard');
+            console.log('Clicked outside keyboard');
         }
     };
 
@@ -133,7 +135,7 @@ class ProblemInput extends React.Component {
         if (this.isMatrixInput()) {
             problemType = "MatrixInput"
         }
-        
+
         try {
             window.mathVirtualKeyboard.layouts = [keyboardType];
         } catch {
@@ -143,7 +145,7 @@ class ProblemInput extends React.Component {
         return (
             <Grid container spacing={0} justifyContent="center" alignItems="center"
                 className={clsx(disableInput && 'disable-interactions')}>
-                <Grid item xs={1} md={problemType === "TextBox" ? 4 : false}/>
+                <Grid item xs={1} md={problemType === "TextBox" ? 4 : false} />
                 <Grid item xs={9} md={problemType === "TextBox" ? 3 : 12}>
                     {(problemType === "TextBox" && this.props.step.answerType !== "string") && (
                         <math-field
@@ -152,15 +154,15 @@ class ProblemInput extends React.Component {
                             onFocus={this.handleFocus}
                             onBlur={this.handleBlur}
                             onInput={evt => this.props.setInputValState(evt.target.value)}
-                            style={{"display": "block"}}
+                            style={{ "display": "block" }}
                             value={(use_expanded_view && debug) ? correctAnswer : state.inputVal}
                             onChange={this.onEquationChange}
                             autoCommands={EQUATION_EDITOR_AUTO_COMMANDS}
                             autoOperatorNames={EQUATION_EDITOR_AUTO_OPERATORS}
                         >
-                            </math-field>
+                        </math-field>
 
-                    )}               
+                    )}
                     {(problemType === "TextBox" && this.props.step.answerType === "string") && (
                         <TextField
                             ref={this.textFieldRef}
@@ -196,7 +198,7 @@ class ProblemInput extends React.Component {
                         >
                         </textarea>
                     )}
-                                        {(problemType === "MultipleChoice" && keepMCOrder) ? (
+                    {(problemType === "MultipleChoice" && keepMCOrder) ? (
                         <MultipleChoice
                             onChange={(evt) => this.props.editInput(evt)}
                             choices={[...this.props.step.choices].reverse()}
@@ -207,17 +209,17 @@ class ProblemInput extends React.Component {
                             variabilization={variabilization}
                         />
                     ) :
-                    (problemType === "MultipleChoice") && (
-                        <MultipleChoice
-                            onChange={(evt) => this.props.editInput(evt)}
-                            choices={shuffleArray(this.props.step.choices, this.props.seed)}
-                            index={index}
-                            {...(use_expanded_view && debug) ? {
-                                defaultValue: correctAnswer
-                            } : {}}
-                            variabilization={variabilization}
-                        />
-                    )}
+                        (problemType === "MultipleChoice") && (
+                            <MultipleChoice
+                                onChange={(evt) => this.props.editInput(evt)}
+                                choices={shuffleArray(this.props.step.choices, this.props.seed)}
+                                index={index}
+                                {...(use_expanded_view && debug) ? {
+                                    defaultValue: correctAnswer
+                                } : {}}
+                                variabilization={variabilization}
+                            />
+                        )}
                     {problemType === "GridInput" && (
                         <GridInput
                             onChange={(newVal) => this.props.setInputValState(newVal)}
@@ -244,13 +246,44 @@ class ProblemInput extends React.Component {
                             } : {}}
                         />
                     )}
+                    {problemType === "CodeEditor" && (
+                        <div style={{
+                            border: "1px solid #ccc",
+                            borderRadius: "4px",
+                            overflow: "hidden",
+                            marginBottom: "16px"
+                        }}>
+                            <Editor
+                                height="300px"
+                                defaultLanguage={"go"}
+                                value={state.inputVal}
+                                onChange={(value) => this.props.setInputValState(value || "")}
+                                options={{
+                                    minimap: { enabled: false },
+                                    scrollBeyondLastLine: false,
+                                    fontSize: 14,
+                                    lineNumbers: "on",
+                                    folding: true,
+                                    automaticLayout: true,
+                                    tabSize: 4,
+                                    insertSpaces: true,
+                                    detectIndentation: true,
+                                    trimAutoWhitespace: true,
+                                    formatOnType: true,
+                                    formatOnPaste: true,
+                                }}
+                                theme="vs-light"
+                            />
+                        </div>
+                    )}
+
                 </Grid>
                 <Grid item xs={2} md={1}>
                     <div style={{ marginLeft: "20%" }}>
                         {units && renderText(units, this.context.problemID, variabilization, this.context)}
                     </div>
                 </Grid>
-                <Grid item xs={false} md={problemType === "TextBox" ? 3 : false}/>
+                <Grid item xs={false} md={problemType === "TextBox" ? 3 : false} />
             </Grid>
         )
     }

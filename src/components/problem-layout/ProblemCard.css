@@ -30,11 +30,26 @@
 .image-grayed-out {
     border-radius: 50%;
     padding: 0.28rem;
-    background-color: rgba(0, 0, 0, 0.1); /* Change the opacity as desired */
+    background-color: rgba(0, 0, 0, 0.1);
+    /* Change the opacity as desired */
     z-index: 1;
     opacity: 1;
 }
 
 .image {
     z-index: 0;
+}
+
+.code-output {
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    padding: 12px;
+    margin: 16px 0;
+    white-space: pre-wrap;
+    font-family: monospace;
+    font-size: 14px;
+    border-radius: 4px;
+    max-height: 200px;
+    overflow: auto;
+    line-height: 1.4;
 }

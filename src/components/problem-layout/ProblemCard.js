@@ -21,6 +21,7 @@ import {
     DYNAMIC_HINT_TEMPLATE,
     // ENABLE_BOTTOM_OUT_HINTS,
     ThemeContext,
+    MIDDLEWARE_URL
 } from "../../config/config.js";
 
 import "./ProblemCard.css";
@@ -146,6 +147,8 @@ class ProblemCard extends React.Component {
             // When we are currently streaming the response from ChatGPT, this variable is `true`
             isGeneratingHint: false,
             lastAIHintHash: null,
+            output: "",
+            isExecutingCode: false,
         };
 
         // This is used for AI hint generation
@@ -234,10 +237,58 @@ class ProblemCard extends React.Component {
         } = this.step;
         const { seed, problemVars, problemID, courseName, answerMade, lesson } =
             this.props;
+        const { step } = this;
 
         if (inputVal === '') {
             toastNotifyEmpty(this.translate)
             return;
+        }
+
+        if (step.problemType === "CodeEditor") {
+
+            this.setState({ isExecutingCode: true }); // start "loading" state
+            const language = this.step.language || "go";
+            const version = this.step.version || "1.16.2";
+            const filename = this.step.filename || "main.go";
+            const expectedOutput = this.step.stepAnswer[0];
+            // change 192.168.0.3 to whatever ip that will be used later
+            fetch(`${MIDDLEWARE_URL}/api/piston/execute`, {
+                // fetch("https://emkc.org/api/v2/piston/execute", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    language: language,       // e.g., "go"
+                    version: version,         // e.g., "1.16.2"
+                    files: [{ name: filename, content: inputVal }]
+                })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    // Program output
+                    const output = data.run.stdout || data.run.stderr || "";
+                    // const isCorrect = output.trim() === (expectedOutput || "").trim();
+                    const isCorrect = output.trim().replace(/\r\n/g, "\n") === (expectedOutput || "").trim().replace(/\r\n/g, "\n");
+
+
+                    toastNotifyCorrectness(isCorrect, null, this.translate);
+
+                    this.setState({
+                        isCorrect,
+                        output,
+
+                        isExecutingCode: false  // ✅ Reset executing state
+                    });
+                    answerMade(this.index, knowledgeComponents, isCorrect);
+                })
+                .catch(err => {
+                    console.error("Code execution error:", err);
+                    this.setState({
+                        output: "Error executing code.",
+                        isExecutingCode: false  // ✅ Reset even on error
+                    });
+                });
+
+            return; // Exit normal submit flow
         }
 
         const [parsed, correctAnswer, reason] = checkAnswer({
@@ -613,7 +664,7 @@ class ProblemCard extends React.Component {
     render() {
         const { translate } = this.props;
         const { classes, problemID, problemVars, seed } = this.props;
-        const { isCorrect } = this.state;
+        const { isCorrect, output } = this.state;
         const { debug, use_expanded_view } = this.context;
 
         const problemAttempted = isCorrect != null;
@@ -718,6 +769,16 @@ class ProblemCard extends React.Component {
                             index={this.props.index}
                         />
                     </div>
+
+                    {this.state.output && (
+                        <div>
+                            <strong style={{ display: "block", marginBottom: "8px", fontSize: "14px" }}>Output:</strong>
+                            <pre className="code-output">
+                                {this.state.output}
+                            </pre>
+                        </div>
+                    )}
+
                 </CardContent>
                 <CardActions>
                     <Grid
@@ -755,6 +816,7 @@ class ProblemCard extends React.Component {
                                 </center>
                             )}
                         </Grid>
+
                         <Grid item xs={4} sm={4} md={2}>
                             <center>
                                 <Button
@@ -763,6 +825,7 @@ class ProblemCard extends React.Component {
                                     size="small"
                                     onClick={this.submit}
                                     disabled={
+                                        this.state.isExecutingCode || // <-- disable while fetching
                                         (use_expanded_view && debug) ||
                                         (!this.allowRetry && problemAttempted)
                                     }

@@ -65,6 +65,9 @@ const queryParamToContext = {
     do_not_restore: "noRestore",
     locale: "locale",
     firebase_token: "firebaseToken"
+    // courseName: "courseName",
+    // courseId: "courseId",
+    // courseCode: "courseCode",
 };
 
 const queryParamsToKeep = ["use_expanded_view", "to", "do_not_restore", "locale"];
@@ -144,6 +147,9 @@ class App extends React.Component {
                 const user = parseJwt(additionalContext.jwt);
                 additionalContext["user"] = user;
                 additionalContext["studentName"] = user.full_name;
+                // additionalContext["courseName"] = user.course_name || additionalContext.courseName || "";
+                // additionalContext["courseId"] = user.course_id || additionalContext.courseId || "";
+                // additionalContext["courseCode"] = user.course_code || additionalContext.courseCode || "";
             }
 
             if (additionalContext?.firebaseToken) {
@@ -268,7 +274,7 @@ class App extends React.Component {
         });
         if (userId) {
             try {
-                const userRef = doc(firebase.db, 'users', userId);
+                const userRef = doc(firebase.db, 'users', userId, 'bktParams', 'progress');
                 await updateDoc(userRef, {
                     bktParams: deleteField()
                 });
@@ -315,11 +321,22 @@ class App extends React.Component {
         //firebase
         const firebase = this.firebase;
         const userId = this.state.userID;
+        // const currentCourse = this.state.additionalContext?.courseName || "";
+        // const currentCourseId = this.state.additionalContext?.courseId || "";
+        // const currentCourseCode = this.state.additionalContext?.courseCode || "";
 
         if (userId) {
             try {
-                const bktProgressRef = doc(firebase.db, 'users', userId);
-                await setDoc(bktProgressRef, { bktParams: progressedBktParams, studentName: this.state.additionalContext?.studentName || "" }, { merge: true });
+                const userRef = doc(firebase.db, 'users', userId);
+                const bktProgressRef = doc(firebase.db, 'users', userId, 'bktParams', 'progress');
+                await Promise.all([
+                    setDoc(bktProgressRef,
+                        progressedBktParams,
+                        { merge: true }),
+                    setDoc(userRef, {
+                        studentName: this.state.additionalContext?.studentName || "",
+                    }, { merge: true })
+                ])
                 console.debug("Saved progress to Firebase successfully");
             } catch (error) {
                 console.error("Error saving progress to Firebase:", error);
@@ -340,7 +357,7 @@ class App extends React.Component {
         });
         if (userId) {
             try {
-                const bktProgressRef = doc(firebase.db, 'users', userId);
+                const bktProgressRef = doc(firebase.db, 'users', userId, 'bktParams', 'progress');
                 const docSnap = await getDoc(bktProgressRef);
                 if (docSnap.exists() && docSnap.data().bktParams) {
                     const cloudProgress = docSnap.data().bktParams;

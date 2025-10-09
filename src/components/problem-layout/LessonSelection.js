@@ -194,7 +194,19 @@ class LessonSelection extends React.Component {
                                                             variant="contained"
                                                             color="primary"
                                                             className={classes.button}
-                                                            onClick={() => this.props.history.push(`/lessons/${lesson.id}`)}
+                                                            // onClick={() => this.props.history.push(`/lessons/${lesson.id}`)}
+                                                            // onClick={() => this.props.selectLesson(lesson)}
+                                                            onClick={() => {
+                                                                // Check if we're in an LTI context with a resource_link_id
+                                                                if (this.context.user?.resource_link_id) {
+                                                                    // LTI integration - use selectLesson for linking
+                                                                    this.props.selectLesson(lesson);
+                                                                } else {
+                                                                    // Standalone mode - navigate to lesson
+                                                                    this.props.history.push(`/lessons/${lesson.id}`);
+                                                                }
+                                                            }}
+
                                                         >
                                                             {translate('lessonSelection.onlyselect')}
                                                         </Button>

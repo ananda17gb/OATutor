@@ -42,15 +42,33 @@ function BrandLogoNav({ isPrivileged = false, noLink = false }) {
         }
     }
 
-    const hideBackButton =
-        location.pathname.includes("courseSelection") ||
-        location.pathname.includes("lessonSelection") ||
-        location.pathname === "/";
+    // Check if we're in Moodle/LTI integration
+    const isMoodleIntegration = context.user?.resource_link_id;
+
+    // Moodle integration: back button only on lessons page
+    const hideBackButtonMoodle =
+        !location.pathname.includes("lessonSelection");
+
+    // Standalone: back button everywhere except course page and home
+    const hideBackButtonStandalone =
+        location.pathname === "/" ||
+        location.pathname.includes("courseSelection") || location.pathname.includes("assignment-finished");
+
+    // Combine based on mode
+    const hideBackButton = isMoodleIntegration
+        ? hideBackButtonMoodle
+        : hideBackButtonStandalone;
+
+    // Only show back button for privileged users (instructors) in Moodle mode
+    // or for all users in standalone mode
+    const shouldShowBackButton = isMoodleIntegration
+        ? (isPrivileged && !hideBackButton)
+        : !hideBackButton;
 
     return <>
         {/* specified to not link or was launched from lms as student*/}
         <div style={{ display: "flex", alignItems: "center" }}>
-            {isPrivileged && !hideBackButton && (
+            {shouldShowBackButton && (
                 <Button
                     color="inherit"
                     size="small"
@@ -58,7 +76,7 @@ function BrandLogoNav({ isPrivileged = false, noLink = false }) {
                     className={classes.backButton}
                     startIcon={<ArrowBackIcon />}
                 >
-                    Back
+                    {location.pathname.includes("/lessons/") ? "Back to Lessons" : "Back"}
                 </Button>
 
             )}

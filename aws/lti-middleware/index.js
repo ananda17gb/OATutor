@@ -34,7 +34,7 @@ const consumerKeySecretMap = {
 
 // const oatsHost = "https://cahlr.github.io/OATutor/#";
 // const oatsHost = "https://oatutor.vercel.app/#";
-const oatsHost = "https://hits-calculators-retrieved-archives.trycloudflare.com/#"
+const oatsHost = "https://sole-celebrities-skins-vernon.trycloudflare.com/#"
 
 
 const stagingHost = "https://cahlr.github.io/OATutor-Staging/#";
@@ -57,11 +57,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // middleware to allow relaxed CORS
 app.use(cors({
-    origin: [
-        "https://hits-calculators-retrieved-archives.trycloudflare.com", // your frontend
-        "https://your-moodle-domain.com", // if you’ll use Moodle-hosted OATutor
-        "http://localhost:3000" // for local development
-    ],
+    origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
     credentials: true,
@@ -79,7 +75,7 @@ const getLinkedLesson = async (resource_link_id) => {
         const docSnap = await docRef.get();
         if (docSnap.exists) {
             console.log("Found lesson link:", docSnap.data().lesson_id)
-            return docSnap.data().lesson_id;
+            return docSnap.data();
         } else {
             console.log("No lesson linked for this resource_id")
             return null;
@@ -90,11 +86,17 @@ const getLinkedLesson = async (resource_link_id) => {
     }
 };
 
-const setLinkedLesson = async (resource_link_id, lesson_num) => {
+const setLinkedLesson = async (resource_link_id, lesson_num, user = {}) => {
     console.log("setting linked lesson");
     try {
         const docRef = firestoredb.collection('resource-lesson-linkage').doc(resource_link_id);
-        await docRef.set({ lesson_id: lesson_num, linked_at: firebaseAdmin.firestore.FieldValue.serverTimestamp() });
+        await docRef.set({
+            lesson_id: lesson_num, linked_at: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
+            course_name: user.course_name || null,
+            course_code: user.course_code || null,
+            course_id: user.course_id || null,
+            resourceLinkTitle: user.resource_link_title || null, // ✅ Add this
+        });
         console.log("Lesson link successfully saved!")
         return true;
     } catch (error) {
@@ -196,6 +198,25 @@ app.listen(PORT, () => {
     console.log(`Example app listening on port ${PORT}`)
 })
 
+// Add proxy route for Piston API
+app.post("/api/piston/execute", async (req, res) => {
+    try {
+        const response = await fetch("http://100.116.83.31:2000/api/v2/execute", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(req.body)
+        });
+
+        const data = await response.json();
+        res.json(data);
+    } catch (error) {
+        console.error("Piston proxy error:", error);
+        res.status(500).json({ error: "Failed to execute code" });
+    }
+});
+
 app.post("/launch", async (req, res) => {
     console.log("launch called");
     // console.log(req);
@@ -214,8 +235,8 @@ app.post("/launch", async (req, res) => {
     const privileged = provider.ta || provider.admin || provider.instructor;
     console.log("privileged: ", privileged);
 
-    let linkedLesson;
-    linkedLesson = await getLinkedLesson(provider.body.resource_link_id);
+    let linkedLessonData = await getLinkedLesson(provider.body.resource_link_id);
+    let linkedLesson = linkedLessonData ? linkedLessonData.lesson_id : null;
     linkedLesson = await catchLegacyLessonID(linkedLesson, provider);
 
     const token = getJWT(
@@ -349,7 +370,8 @@ app.post(
         }
 
         let validPut, linkedLesson;
-        linkedLesson = await getLinkedLesson(user.resource_link_id);
+        let linkedLessonData = await getLinkedLesson(user.resource_link_id);
+        linkedLesson = linkedLessonData ? linkedLessonData.lesson_id : null;
         console.log("linkedLesson: ", linkedLesson);
 
         if (linkedLesson) {
@@ -365,7 +387,7 @@ app.post(
             return;
         }
 
-        validPut = await setLinkedLesson(user.resource_link_id, req.body.lesson.id);
+        validPut = await setLinkedLesson(user.resource_link_id, req.body.lesson.id, user);
 
         if (!validPut) {
             res.status(400).send("unknown_error").end();
@@ -668,9 +690,15 @@ app.post("/auth", async (req, res) => {
         res.end();
     } else {
         let err, linkedLesson;
-        linkedLesson = await getLinkedLesson(resource_link_id);
+        let linkedLessonData = await getLinkedLesson(resource_link_id);
+        linkedLesson = linkedLessonData ? linkedLessonData.lesson_id : null;
         if (!linkedLesson) {
-            err = await setLinkedLesson(resource_link_id, lessonID);
+            err = await setLinkedLesson(resource_link_id, lessonID, {
+                course_name: provider.body.context_title,
+                course_code: provider.body.context_label,
+                course_id: provider.body.context_id,
+                resourceLinkTitle: provider.body.resource_link_title, // ✅ Add this
+            });
             if (err) {
                 console.error(
                     `unable to set association for ${resource_link_id}, ${resource_link_title}, to lessonID: ${lessonID}`
@@ -710,7 +738,14 @@ async function catchLegacyLessonID(linkedLesson, provider) {
             }`
         );
         linkedLesson = numericalHashMapping[+linkedLesson];
-        await setLinkedLesson(provider.body.resource_link_id, linkedLesson);
+        await setLinkedLesson(provider.body.resource_link_id, linkedLesson,
+            {
+                course_name: provider.body.context_title,
+                course_code: provider.body.context_label,
+                course_id: provider.body.context_id,
+                resourceLinkTitle: provider.body.resource_link_title, // ✅ Add this
+            }
+        );
     }
     return linkedLesson;
 }

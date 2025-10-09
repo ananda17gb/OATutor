@@ -152,6 +152,10 @@ class Platform extends React.Component {
                     body: JSON.stringify({
                         token: context?.jwt || this.context?.jwt || "",
                         lesson,
+                        courseName: context?.user.course_name || "",
+                        courseId: context?.user.course_id || "",
+                        courseCode: context?.user.course_code || "",
+                        resourceLinkTitle: context?.user.resource_link_title || "", // ✅ Add this
                     }),
                 })
             );
@@ -430,10 +434,17 @@ class Platform extends React.Component {
         const firebase = this.context.firebase;
         const userId = this.userID;
         const lessonId = this.lesson.id;
+        console.debug(this.lesson);
         if (userId) {
             try {
                 const progressRef = doc(firebase.db, 'users', userId, 'lessons', lessonId);
-                await setDoc(progressRef, { completedProbs: Array.from(this.completedProbs) }, { merge: true });
+                await setDoc(progressRef, {
+                    completedProbs: Array.from(this.completedProbs),
+                    courseName: this.context?.user.course_name || "",
+                    courseId: this.context?.user.course_id || "",
+                    courseCode: this.context?.user.course_code || "",
+                    resourceLinkTitle: this.context?.user.resource_link_title || "", // ✅ Add this
+                }, { merge: true });
             } catch (error) {
                 console.error("Error saving completed problem to Firebase:", error);
                 this.context.firebase.submitSiteLog("site-error", `componentName: Platform.js`, {
@@ -478,7 +489,7 @@ class Platform extends React.Component {
 
             setTimeout(() => {
                 if (this.props.history && this._isMounted) {
-                    this.props.history.push("/assignment-finished");
+                    this.props.history.push("/assignment-finished?lesson=${this.lesson.id}");
                 }
             }, 3500);
         }
