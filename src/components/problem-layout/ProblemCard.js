@@ -245,13 +245,12 @@ class ProblemCard extends React.Component {
         }
 
         if (step.problemType === "CodeEditor") {
-
             this.setState({ isExecutingCode: true }); // start "loading" state
             const language = this.step.language || "go";
             const version = this.step.version || "1.16.2";
             const filename = this.step.filename || "main.go";
             const expectedOutput = this.step.stepAnswer[0];
-            // change 192.168.0.3 to whatever ip that will be used later
+
             fetch(`${MIDDLEWARE_URL}/api/piston/execute`, {
                 // fetch("https://emkc.org/api/v2/piston/execute", {
                 method: "POST",
@@ -269,13 +268,11 @@ class ProblemCard extends React.Component {
                     // const isCorrect = output.trim() === (expectedOutput || "").trim();
                     const isCorrect = output.trim().replace(/\r\n/g, "\n") === (expectedOutput || "").trim().replace(/\r\n/g, "\n");
 
-
                     toastNotifyCorrectness(isCorrect, null, this.translate);
 
                     this.setState({
                         isCorrect,
                         output,
-
                         isExecutingCode: false  // ✅ Reset executing state
                     });
                     answerMade(this.index, knowledgeComponents, isCorrect);

@@ -87,7 +87,7 @@ const EQUATION_EDITOR_AUTO_OPERATORS = "sin cos tan";
 
 // change this if cloudflare resets (backend)
 const MIDDLEWARE_URL =
-    "https://art-ranger-hotel-possibilities.trycloudflare.com";
+    "https://superintendent-restaurants-fire-factory.trycloudflare.com";
 
 const HELP_DOCUMENT =
     "https://docs.google.com/document/d/e/2PACX-1vToe2F3RiCx1nwcX9PEkMiBA2bFy9lQRaeWIbyqlc8W_KJ9q-hAMv34QaO_AdEelVY7zjFAF1uOP4pG/pub";

@@ -35,7 +35,8 @@ class LessonSelection extends React.Component {
         }
 
         this.user = context.user || {}
-        this.isPrivileged = !!this.user.privileged
+        this.isPrivileged = !!this.user.privileged;
+        this.isLMS = !!this.user.resource_link_id;
 
         this.coursePlans = _coursePlansNoEditor;
         this.togglePopup = this.togglePopup.bind(this);
@@ -223,7 +224,7 @@ class LessonSelection extends React.Component {
                     <Spacer />
                     <Grid container spacing={0}>
                         <Grid item xs={3} sm={3} md={5} key={1} />
-                        {!this.isPrivileged && <Grid item xs={6} sm={6} md={2} key={2}>
+                        {(this.isLMS ? this.isPrivileged : !this.isPrivileged) && <Grid item xs={6} sm={6} md={2} key={2}>
                             {this.state.preparedRemoveProgress ?
                                 <Button className={classes.button} style={{ width: "100%" }} size="small"
                                     onClick={this.removeProgress}

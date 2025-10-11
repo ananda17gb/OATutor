@@ -274,10 +274,14 @@ class App extends React.Component {
         });
         if (userId) {
             try {
-                const userRef = doc(firebase.db, 'users', userId, 'bktParams', 'progress');
-                await updateDoc(userRef, {
-                    bktParams: deleteField()
-                });
+                const bktProgressRef = doc(firebase.db, 'users', userId, 'bktParams', 'progress');
+                const bktProgressDoc = await getDoc(bktProgressRef);
+
+                if (bktProgressDoc.exists()) {
+                    await updateDoc(bktProgressRef, {
+                        bktParams: deleteField()
+                    });
+                }
 
                 const lessonRef = collection(firebase.db, 'users', userId, 'lessons');
                 const querySnapshot = await getDocs(lessonRef);
@@ -334,7 +338,9 @@ class App extends React.Component {
                         progressedBktParams,
                         { merge: true }),
                     setDoc(userRef, {
-                        studentName: this.state.additionalContext?.studentName || "",
+                        studentName: this.state.additionalContext?.studentName ||
+                            this.state.additionalContext?.user?.full_name ||
+                            "Anonymous Student",
                     }, { merge: true })
                 ])
                 console.debug("Saved progress to Firebase successfully");

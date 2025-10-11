@@ -34,7 +34,7 @@ const consumerKeySecretMap = {
 
 // const oatsHost = "https://cahlr.github.io/OATutor/#";
 // const oatsHost = "https://oatutor.vercel.app/#";
-const oatsHost = "https://sole-celebrities-skins-vernon.trycloudflare.com/#"
+const oatsHost = "https://loads-remained-occur-rejected.trycloudflare.com/#"
 
 
 const stagingHost = "https://cahlr.github.io/OATutor-Staging/#";
@@ -614,7 +614,7 @@ app.post(
                     res.status(400).send("unable_to_handle_score").end();
                     return;
                 }
-                console.log("✅ Grade successfully sent to Moodle:", result);
+                console.log("✅ Grade successfully sent to LMS:", result);
 
                 res.status(200).end();
             }
