@@ -1,5 +1,5 @@
 import React from "react";
-import { AppBar, Toolbar } from "@material-ui/core";
+import { AppBar, Toolbar, Button } from "@material-ui/core";
 import Grid from "@material-ui/core/Grid";
 import ProblemWrapper from "@components/problem-layout/ProblemWrapper.js";
 import LessonSelectionWrapper from "@components/problem-layout/LessonSelectionWrapper.js";
@@ -24,6 +24,11 @@ import ErrorBoundary from "@components/ErrorBoundary";
 import { CONTENT_SOURCE } from "@common/global-config";
 import withTranslation from '../util/withTranslation';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import ProgressBar from "@components/ProgressBar";
+import { PointsService } from "../services/PointsService"
+import { LeaderboardService } from "../services/LeaderboardService"
+import PointsDisplay from "@components/PointDisplay";
+import Leaderboard from "@components/Leaderboard";
 
 let problemPool = require(`@generated/processed-content-pool/${CONTENT_SOURCE}.json`);
 
@@ -35,6 +40,9 @@ class Platform extends React.Component {
 
     constructor(props, context) {
         super(props);
+
+        this.activityContext = this.getActivityContext(context);
+        this.lessonProgressKey = this.getLessonProgressKey();
 
         this.problemIndex = {
             problems: problemPool,
@@ -63,21 +71,52 @@ class Platform extends React.Component {
                 );
             }
         }
-        if (this.props.lessonID == null) {
-            this.state = {
-                currProblem: null,
-                status: "courseSelection",
-                seed: seed,
-            };
-        } else {
-            this.state = {
-                currProblem: null,
-                status: "courseSelection",
-                seed: seed,
-            };
-        }
+        this.state = {
+            currProblem: null,
+            status: "courseSelection",
+            seed: seed,
+            sessionMastery: 0, // Track mastery in current session
+            persistedMastery: 0, // Track last persisted mastery
+            showLeaderboard: false,
+        };
 
         this.selectLesson = this.selectLesson.bind(this);
+
+        const isLMSUser = PointsService.isLMSUser(context);
+        // Initialize points service
+        this.pointsService = new PointsService(
+            context.firebase,
+            context.browserStorage,
+            this.userID,
+            isLMSUser
+        );
+
+        // Initialize user data
+        this.pointsService.initializeUserData();
+
+        this.leaderboardService = new LeaderboardService(
+            context.firebase,
+            context.browserStorage,
+            this.state.userID,
+            true,
+            this.state.additionalContext
+        )
+    }
+
+    // Add method to get activity context
+    getActivityContext(context) {
+        const user = context.user || {};
+        return {
+            resourceLinkId: user.resource_link_id || 'standalone',
+            lessonId: this.props.lessonID,
+            userId: this.userID
+        };
+    }
+
+    // Add method to generate unique progress key
+    getLessonProgressKey() {
+        const { resourceLinkId, lessonId, userId } = this.activityContext;
+        return `lesson_progress_${resourceLinkId}_${lessonId}_${userId}`;
     }
 
     componentDidMount() {
@@ -111,6 +150,20 @@ class Platform extends React.Component {
     componentWillUnmount() {
         this._isMounted = false;
         this.context.problemID = "n/a";
+
+        // If user leaves without completing, reset session points
+        if (this.state.status === "learning" && this.pointsService) {
+            const lostPoints = this.pointsService.resetSessionPoints();
+            if (lostPoints > 0) {
+                console.log(`User left without completing. Lost ${lostPoints} unpersisted points.`);
+            }
+        }
+
+        // Note: Mastery changes are lost if user leaves without clicking Next Problem
+        // This is intentional - same behavior as points
+        if (this.state.status === "learning" && this.state.sessionMastery > this.state.persistedMastery) {
+            console.log(`User left without saving mastery progress. Session mastery: ${this.state.sessionMastery}, Persisted: ${this.state.persistedMastery}`);
+        }
     }
 
     componentDidUpdate(prevProps, prevState, snapshot) {
@@ -246,18 +299,51 @@ class Platform extends React.Component {
             const firebase = this.context.firebase;
             const userId = this.userID;
             const lessonId = this.lesson.id;
+            const resourceLinkId = this.context.user?.resource_link_id;
             console.log("📚 LoadLessonProgress - Platform.js", {
                 userId,
-                lessonId
+                lessonId,
+                resourceLinkId
             });
             try {
                 if (userId) {
-                    const progressRef = doc(firebase.db, 'users', userId, 'lessons', lessonId);
+                    const progressDocId = resourceLinkId ? `${lessonId}_${resourceLinkId}`
+                        : lessonId;
+                    const progressRef = doc(firebase.db, 'users', userId, 'lessons', progressDocId);
                     const docSnap = await getDoc(progressRef);
+                    if (!this._isMounted) {
+                        console.debug("component not mounted during progress load, returning early");
+                        return null;
+                    }
                     if (docSnap.exists()) {
-                        const cloudProgress = docSnap.data().completedProbs;
+                        const cloudProgress = docSnap.data();
                         console.debug("Restored lesson progress from cloud:", cloudProgress);
-                        return cloudProgress;
+
+                        // Load completed problems
+                        if (cloudProgress.completedProbs) {
+                            this.completedProbs = new Set(cloudProgress.completedProbs);
+                        }
+
+                        // Load persisted mastery
+                        if (cloudProgress.mastery) {
+                            this.setState({
+                                persistedMastery: cloudProgress.mastery,
+                                sessionMastery: cloudProgress.mastery,
+                                mastery: cloudProgress.mastery
+                            });
+                            console.log('📚 Loaded persisted mastery:', cloudProgress.mastery);
+                        }
+
+                        // IMPORTANT: Check if lesson was already completed based on persisted mastery
+                        if (cloudProgress.mastery >= MASTERY_THRESHOLD) {
+                            console.log("🎯 Lesson already completed based on persisted mastery - redirecting");
+                            if (this.props.history && this._isMounted) {
+                                this.props.history.push("/assignment-finished");
+                                return null; // Stop further processing
+                            }
+                        }
+
+                        return cloudProgress.completedProbs;
                     }
                 }
             } catch (error) {
@@ -305,17 +391,19 @@ class Platform extends React.Component {
             }
         }
 
-        this.setState(
-            {
-                currProblem: this._nextProblem(
-                    this.context ? this.context : context
-                ),
-            },
-            () => {
-                //console.log(this.state.currProblem);
-                //console.log(this.lesson);
-            }
-        );
+        if (this._isMounted) {
+            this.setState(
+                {
+                    currProblem: this._nextProblem(
+                        this.context ? this.context : context
+                    ),
+                },
+                () => {
+                    //console.log(this.state.currProblem);
+                    //console.log(this.lesson);
+                }
+            );
+        }
     }
 
     selectCourse = (course, context) => {
@@ -326,6 +414,17 @@ class Platform extends React.Component {
     };
 
     _nextProblem = (context) => {
+        const objectives = Object.keys(this.lesson.learningObjectives);
+        console.debug("Platform.js: objectives", objectives);
+        let score = objectives.reduce((x, y) => {
+            return x + context.bktParams[y].probMastery;
+        }, 0);
+        score /= objectives.length;
+        if (score >= MASTERY_THRESHOLD) {
+            this.displayMastery(score);
+            return null;
+        }
+
         seed = Date.now().toString();
         this.setState({ seed: seed });
         this.props.saveProgress();
@@ -375,13 +474,6 @@ class Platform extends React.Component {
         chosenProblem = context.heuristic(problems, this.completedProbs);
         console.debug("Platform.js: chosen problem", chosenProblem);
 
-        const objectives = Object.keys(this.lesson.learningObjectives);
-        console.debug("Platform.js: objectives", objectives);
-        let score = objectives.reduce((x, y) => {
-            return x + context.bktParams[y].probMastery;
-        }, 0);
-        score /= objectives.length;
-        this.displayMastery(score);
         //console.log(Object.keys(context.bktParams).map((skill) => (context.bktParams[skill].probMastery <= this.lesson.learningObjectives[skill])));
 
         // There exists a skill that has not yet been mastered (a True)
@@ -430,20 +522,53 @@ class Platform extends React.Component {
     problemComplete = async (context) => {
         this.completedProbs.add(this.state.currProblem.id);
 
+        // // Persist accumulated points when moving to next problem
+        // if (this.pointsService) {
+        //     await this.pointsService.persistAccumulatedPoints();
+        // }
+        //
+        // // Persist current mastery state when moving to next problem
+        // if (this.state.sessionMastery > this.state.persistedMastery) {
+        //     await this.persistMasteryState(this.state.sessionMastery);
+        // }
+
+        // Always persist when moving to next problem OR if mastery reached threshold
+        const shouldPersist = this.state.sessionMastery > this.state.persistedMastery ||
+            this.state.sessionMastery >= MASTERY_THRESHOLD;
+
+        if (shouldPersist) {
+            // Persist accumulated points
+            if (this.pointsService) {
+                await this.pointsService.persistAccumulatedPoints();
+            }
+
+            // Persist current mastery state
+            if (this.state.sessionMastery > this.state.persistedMastery) {
+                await this.persistMasteryState(this.state.sessionMastery);
+            }
+        }
+
         //firebase
         const firebase = this.context.firebase;
         const userId = this.userID;
         const lessonId = this.lesson.id;
+        const resourceLinkId = this.context.user?.resource_link_id;
         console.debug(this.lesson);
         if (userId) {
             try {
-                const progressRef = doc(firebase.db, 'users', userId, 'lessons', lessonId);
+                // Use resourceLinkId in the document path if available
+                const progressDocId = resourceLinkId
+                    ? `${lessonId}_${resourceLinkId}`
+                    : lessonId;
+                const progressRef = doc(firebase.db, 'users', userId, 'lessons', progressDocId);
                 await setDoc(progressRef, {
                     completedProbs: Array.from(this.completedProbs),
                     courseName: this.context?.user.course_name || "",
                     courseId: this.context?.user.course_id || "",
                     courseCode: this.context?.user.course_code || "",
                     resourceLinkTitle: this.context?.user.resource_link_title || "", // ✅ Add this
+                    resourceLinkId: resourceLinkId || "", // Store the resource link ID
+                    activitySpecific: !!resourceLinkId // Mark as activity-specific
                 }, { merge: true });
             } catch (error) {
                 console.error("Error saving completed problem to Firebase:", error);
@@ -477,22 +602,150 @@ class Platform extends React.Component {
         this._nextProblem(context);
     };
 
-    displayMastery = (mastery) => {
-        this.setState({ mastery: mastery });
-        if (mastery >= MASTERY_THRESHOLD) {
-            toast.success("You've successfully completed this assignment!", {
-                toastId: ToastID.successfully_completed_lesson.toString(),
-                autoClose: 3000,
-                closeOnClick: true,
-                pauseOnHover: false,
-            });
+    displayMastery = async (mastery) => {
+        this.setState({ sessionMastery: mastery, mastery: mastery });
 
-            setTimeout(() => {
-                if (this.props.history && this._isMounted) {
-                    this.props.history.push("/assignment-finished?lesson=${this.lesson.id}");
-                }
-            }, 3500);
+        if (mastery >= MASTERY_THRESHOLD) {
+            if (this.state.currProblem && this.state.status === "learning") {
+                this.completedProbs.add(this.state.currProblem.id);
+
+                // Final persistence of all data
+                await this.finalizeLessonCompletion(mastery);
+            } else {
+                // If no current problem (already completed), just finalize
+                await this.finalizeLessonCompletion(mastery);
+            }
         }
+    };
+
+    // Add new method to handle lesson completion finalization
+    finalizeLessonCompletion = async (mastery) => {
+        console.log('🎯 Finalizing lesson completion...');
+
+        // Award lesson completion points
+        const pointsEarned = this.pointsService.awardPoints(true, {
+            isLessonCompletion: true,
+            masteryPercentage: Math.round(mastery * 100)
+        });
+
+        // Update leaderboard for lesson completion
+        if (this.leaderboardService) {
+            await this.leaderboardService.incrementLessonsCompleted();
+        }
+
+        // Final persistence of all points and progress
+        await this.pointsService.persistAccumulatedPoints();
+        await this.persistMasteryState(mastery);
+
+        // Update Canvas with final score
+        if (this.context.jwt) {
+            await this.updateCanvasForCompletion(mastery);
+        }
+
+        this.setState({
+            sessionMastery: mastery,
+            persistedMastery: mastery
+        });
+
+        toast.success(`You've successfully completed this assignment! +${pointsEarned} points earned!`, {
+            toastId: ToastID.successfully_completed_lesson.toString(),
+            autoClose: 3000,
+            closeOnClick: true,
+            pauseOnHover: false,
+        });
+
+        // Redirect after a short delay to ensure everything is saved
+        setTimeout(() => {
+            if (this.props.history && this._isMounted) {
+                this.props.history.push(`/assignment-finished?lesson=${this.lesson.id}`);
+            }
+        }, 2000);
+    };
+
+    // Add method to persist mastery state
+    persistMasteryState = async (mastery) => {
+        if (!this.userID || !this.context.firebase?.db) return;
+
+        try {
+            const firebase = this.context.firebase;
+            const lessonId = this.lesson.id;
+            const resourceLinkId = this.context.user?.resource_link_id;
+
+            const progressDocId = resourceLinkId
+                ? `${lessonId}_${resourceLinkId}`
+                : lessonId;
+            const progressRef = doc(firebase.db, 'users', this.userID, 'lessons', progressDocId);
+
+            const isCompleted = mastery >= MASTERY_THRESHOLD;
+            await setDoc(progressRef, {
+                mastery: mastery,
+                isCompleted: isCompleted, // Add this flag
+                completedAt: isCompleted ? new Date().toISOString() : null, // Add completion timestamp
+                lastMasteryUpdate: new Date().toISOString(),
+                completedProbs: Array.from(this.completedProbs),
+                courseName: this.context?.user.course_name || "",
+                courseId: this.context?.user.course_id || "",
+                courseCode: this.context?.user.course_code || "",
+                resourceLinkTitle: this.context?.user.resource_link_title || "",
+                resourceLinkId: resourceLinkId || "", // Store the resource link ID
+                activitySpecific: !!resourceLinkId // Mark as activity-specific
+            }, { merge: true });
+
+            console.log('🎯 Mastery persisted to Firestore:', mastery);
+            this.setState({ persistedMastery: mastery });
+            // Update Canvas when mastery is persisted (only for significant updates)
+            // You might want to add a threshold to avoid too many Canvas updates
+            if (this.context.jwt && mastery >= MASTERY_THRESHOLD) {
+                await this.updateCanvasForCompletion(mastery);
+            }
+
+        } catch (error) {
+            console.error('Error persisting mastery:', error);
+        }
+    };
+
+    // Add a method for Canvas updates on lesson completion
+    updateCanvasForCompletion = async (mastery) => {
+        console.debug("updateCanvasForCompletion() called", { mastery, jwt: this.context.jwt });
+
+        if (!this.context.jwt) return;
+
+        const relevantKc = {};
+        if (this.lesson && this.lesson.learningObjectives) {
+            Object.keys(this.lesson.learningObjectives).forEach((x) => {
+                relevantKc[x] = this.context.bktParams[x]?.probMastery || 0;
+            });
+        }
+
+        let err, response;
+        [err, response] = await to(
+            fetch(`${MIDDLEWARE_URL}/postScore`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    token: this.context?.jwt || "",
+                    mastery,
+                    components: relevantKc,
+                }),
+            })
+        );
+
+        if (err || !response) {
+            console.error("Error updating Canvas:", err);
+        } else if (response.status !== 200) {
+            console.error("Canvas update failed with status:", response.status);
+        } else {
+            console.debug("Successfully updated Canvas with mastery:", mastery);
+        }
+    };
+
+    // Add method to toggle leaderboard
+    toggleLeaderboard = () => {
+        this.setState(prevState => ({
+            showLeaderboard: !prevState.showLeaderboard
+        }));
     };
 
     render() {
@@ -500,6 +753,11 @@ class Platform extends React.Component {
         this.studentNameDisplay = this.context.studentName
             ? decodeURIComponent(this.context.studentName) + " | "
             : translate('platform.LoggedIn') + " | ";
+
+        // Determine if leaderboard should be shown
+        const shouldShowLeaderboard = this.isPrivileged
+            ? (this.state.status === "courseSelection" || this.state.status === "lessonSelection")
+            : false; // For non-privileged, we'll show it on assignment-finished page instead
         return (
             <div
                 style={{
@@ -526,37 +784,68 @@ class Platform extends React.Component {
                                 <div
                                     style={{
                                         textAlign: "center",
+                                        alignItems: 'center',
                                         textAlignVertical: "center",
                                         paddingTop: "3px",
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        justifyContent: 'center',
+                                        gap: '2px'
                                     }}
                                 >
-                                    {Boolean(
-                                        findLessonById(this.props.lessonID)
-                                    )
-                                        ? findLessonById(this.props.lessonID)
-                                            .name +
-                                        " " +
-                                        findLessonById(this.props.lessonID)
-                                            .topics
-                                        : ""}
+                                    {/* Lesson Title */}
+                                    {Boolean(findLessonById(this.props.lessonID)) && (
+                                        <div style={{ marginBottom: '4px' }}>
+                                            {findLessonById(this.props.lessonID).name + " " + findLessonById(this.props.lessonID).topics}
+                                        </div>
+                                    )}
+
+                                    {/* Points Display for non-privileged users */}
+                                    {this.userID && !this.isPrivileged && (
+                                        <PointsDisplay
+                                            userId={this.userID}
+                                            firebase={this.context.firebase}
+                                            browserStorage={this.context.browserStorage}
+                                            pointsService={this.pointsService}
+                                            showLabel={true}
+                                        />
+                                    )}
+
+                                    {/* Leaderboard Button - Centered and conditional */}
+                                    {shouldShowLeaderboard && (
+                                        <Button
+                                            color="inherit"
+                                            onClick={this.toggleLeaderboard}
+                                            startIcon={<span>🏆</span>}
+                                            style={{
+                                                marginTop: '4px',
+                                                fontWeight: 'bold'
+                                            }}
+                                        >
+                                            Leaderboard
+                                        </Button>
+                                    )}
                                 </div>
                             </Grid>
                             <Grid item xs={3} key={3}>
                                 <div
                                     style={{
-                                        textAlign: "right",
-                                        paddingTop: "3px",
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'flex-end',
+                                        paddingTop: '3px',
                                     }}
                                 >
                                     {this.state.status !== "courseSelection" &&
                                         this.state.status !== "lessonSelection" &&
-                                        (this.lesson.showStuMastery == null ||
-                                            this.lesson.showStuMastery)
-                                        ? this.studentNameDisplay +
-                                        translate('platform.Mastery') +
-                                        Math.round(this.state.mastery * 100) +
-                                        "%"
-                                        : ""}
+                                        (this.lesson.showStuMastery == null || this.lesson.showStuMastery) && (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                                {this.studentNameDisplay}{translate('platform.Mastery')}
+                                                <ProgressBar mastery={this.state.sessionMastery || 0} />
+                                            </div>
+                                        )}
+
+
                                 </div>
                             </Grid>
                         </Grid>
@@ -594,10 +883,38 @@ class Platform extends React.Component {
                             seed={this.state.seed}
                             lessonID={this.props.lessonID}
                             displayMastery={this.displayMastery}
+                            pointsService={this.pointsService} // ← Pass service directly
+                            currentMastery={this.state.mastery || 0}
+                            trackProblemAttempt={(problemId) =>
+                                this.pointsService?.trackProblemAttempt(problemId) || 1
+                            }
                         />
                     </ErrorBoundary>
                 ) : (
                     ""
+                )}
+                {this.state.showLeaderboard && (
+                    <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 2000,
+                    }} onClick={this.toggleLeaderboard}>
+                        <div onClick={(e) => e.stopPropagation()}>
+                            <Leaderboard
+                                leaderboardService={this.leaderboardService}
+                                currentUserId={this.userID}
+                                onClose={this.toggleLeaderboard}
+                                firebase={this.context.firebase}
+                            />
+                        </div>
+                    </div>
                 )}
                 {this.state.status === "exhausted" ? (
                     <center>

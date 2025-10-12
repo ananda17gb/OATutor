@@ -238,6 +238,22 @@ class Problem extends React.Component {
             return;
         }
 
+        if (isCorrect && this.props.pointsService) {
+            const attemptCount = this.props.trackProblemAttempt?.(problem.id) || 1;
+
+            // Use the unified points system
+            this.props.pointsService.awardPoints(isCorrect, {
+                knowledgeComponents: kcArray || [],
+                attemptCount: attemptCount,
+                lessonProgress: this.props.currentMastery || 0,
+                problemId: problem.id
+            });
+
+            console.debug('🎯 Points awarded to session (not persisted)');
+
+            // Points are now accumulated in memory and will be persisted later
+        }
+
         if (stepStates[cardIndex] == null) {
             if (kcArray == null) {
                 kcArray = [];
@@ -340,6 +356,16 @@ class Problem extends React.Component {
 
     clickNextProblem = async () => {
         scroll.scrollToTop({ duration: 900, smooth: true });
+
+        // PERSIST points and mastery when clicking Next Problem
+        if (this.pointsService) {
+            await this.pointsService.persistAccumulatedPoints();
+        }
+
+        // Persist mastery if it has increased
+        if (this.state.sessionMastery > this.state.persistedMastery) {
+            await this.persistMasteryState(this.state.sessionMastery);
+        }
 
         await this.props.problemComplete(this.context);
 
