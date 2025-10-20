@@ -252,6 +252,15 @@ class Problem extends React.Component {
             console.debug('🎯 Points awarded to session (not persisted)');
 
             // Points are now accumulated in memory and will be persisted later
+            this.props.pointsService.trackProblemCompletion(isCorrect, {
+                problemId: problem.id,
+                isLessonCompletion: false
+            });
+
+            if (this.props.onPointsUpdate) {
+                const currentProgress = this.props.pointsService.getCurrentProgress();
+                this.props.onPointsUpdate(currentProgress.totalPoints);
+            }
         }
 
         if (stepStates[cardIndex] == null) {
@@ -358,8 +367,8 @@ class Problem extends React.Component {
         scroll.scrollToTop({ duration: 900, smooth: true });
 
         // PERSIST points and mastery when clicking Next Problem
-        if (this.pointsService) {
-            await this.pointsService.persistAccumulatedPoints();
+        if (this.props.pointsService) {
+            await this.props.pointsService.persistAccumulatedPoints();
         }
 
         // Persist mastery if it has increased

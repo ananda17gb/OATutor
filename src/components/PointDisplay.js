@@ -6,6 +6,8 @@ const PointsDisplay = ({ userId, firebase, browserStorage, pointsService, showLa
 
     useEffect(() => {
         if (!pointsService) {
+            console.log('🎯 PointsDisplay: No points service available');
+
             setIsLoading(false);
             return;
         }
@@ -16,6 +18,8 @@ const PointsDisplay = ({ userId, firebase, browserStorage, pointsService, showLa
         const initializePoints = async () => {
             try {
                 // Wait for points service to initialize and load current points
+                console.log('🎯 PointsDisplay: Initializing points...');
+
                 await pointsService.loadCurrentPoints();
 
                 // Get initial points after loading
@@ -33,15 +37,35 @@ const PointsDisplay = ({ userId, firebase, browserStorage, pointsService, showLa
             }
         };
 
-        initializePoints();
 
         // Set up real-time updates
-        const handlePointsUpdate = (newPoints) => {
-            console.log('🎯 PointsDisplay received update:', newPoints);
-            if (isMounted) { setPoints(newPoints); }
+        // const handlePointsUpdate = (newPoints) => {
+        //     console.log('🎯 PointsDisplay received update:', newPoints);
+        //     if (isMounted) { setPoints(newPoints); }
+        // };
+
+        // ✅ FIXED: Handle both number (old) and object (new) formats
+        const handlePointsUpdate = (progressOrPoints) => {
+            console.log('🎯 PointsDisplay: Received update callback!', {
+                value: progressOrPoints,
+                type: typeof progressOrPoints,
+                isMounted: isMounted
+            });
+            if (isMounted) {
+                // If it's an object with totalPoints, use that; otherwise treat as number
+                const newPoints = typeof progressOrPoints === 'object'
+                    ? progressOrPoints.totalPoints
+                    : progressOrPoints;
+                console.log('🎯 PointsDisplay: Setting points to:', newPoints);
+
+                setPoints(newPoints);
+            }
         };
+        console.log('🎯 PointsDisplay: Setting up callback with pointsService');
 
         pointsService.setPointsUpdateCallback(handlePointsUpdate);
+
+        initializePoints();
 
         return () => {
             isMounted = false;

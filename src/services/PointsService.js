@@ -14,10 +14,49 @@ export class PointsService {
         this.sessionPoints = 0; // Points earned in current session (not persisted yet)
         this.totalPoints = 0;   // Total points (persisted + session)
         this.totalLessonsCompleted = 0;
+        this.totalProblemsCompleted = 0;
         this.onPointsUpdate = null; // Callback for UI updates
 
         // Initialize leaderboard service
         this.leaderboardService = new LeaderboardService(firebase, browserStorage, userId, isLMSUser);
+
+        this.badgeDefinitions = {
+            FIRST_PROBLEM: {
+                id: 'first_problem',
+                name: 'First Step',
+                description: 'Complete your first problem',
+                criteria: (userData) => userData.totalProblemsCompleted >= 1,
+                icon: '🚀'
+            },
+            // QUICK_LEARNER: {
+            //     id: 'quick_learner',
+            //     name: 'Quick Learner',
+            //     description: 'Complete a problem on first attempt',
+            //     criteria: (userData) => userData.firstAttemptCompletions >= 5,
+            //     icon: '⚡'
+            // },
+            LESSON_MASTER: {
+                id: 'lesson_master',
+                name: 'Lesson Master',
+                description: 'Complete 5 lessons',
+                criteria: (userData) => userData.totalLessonsCompleted >= 5,
+                icon: '🎓'
+            },
+            // PERFECTIONIST: {
+            //     id: 'perfectionist',
+            //     name: 'Perfectionist',
+            //     description: 'Achieve 90% or higher mastery on a lesson',
+            //     criteria: (userData) => userData.highMasteryCompletions >= 1,
+            //     icon: '⭐'
+            // },
+            PROBLEM_SOLVER: {
+                id: 'problem_solver',
+                name: 'Problem Solver',
+                description: 'Complete 50 problems',
+                criteria: (userData) => userData.totalProblemsCompleted >= 50,
+                icon: '💡'
+            },
+        };
     }
 
     // Initialize user points data
@@ -32,6 +71,7 @@ export class PointsService {
                     await setDoc(userRef, {
                         points: 0,
                         totalLessonsCompleted: 0,
+                        totalProblemsCompleted: 0,
                         badges: [],
                     });
                 } else {
@@ -39,15 +79,10 @@ export class PointsService {
                     const userData = userDoc.data();
                     const updates = {};
 
-                    if (userData.points === undefined) {
-                        updates.points = 0;
-                    }
-                    if (userData.totalLessonsCompleted === undefined) {
-                        updates.totalLessonsCompleted = 0;
-                    }
-                    if (userData.badges === undefined) {
-                        updates.badges = [];
-                    }
+                    if (userData.points === undefined) updates.points = 0;
+                    if (userData.totalLessonsCompleted === undefined) updates.totalLessonsCompleted = 0;
+                    if (userData.totalProblemsCompleted === undefined) updates.totalProblemsCompleted = 0;
+                    if (userData.badges === undefined) updates.badges = [];
 
                     if (Object.keys(updates).length > 0) {
                         await updateDoc(userRef, updates);
@@ -56,6 +91,7 @@ export class PointsService {
 
                     // Load current values
                     this.totalLessonsCompleted = userData.totalLessonsCompleted || 0;
+                    this.totalProblemsCompleted = userData.totalProblemsCompleted || 0;
                 }
             } catch (error) {
                 console.error('Error initializing Firebase user data:', error);
@@ -67,6 +103,7 @@ export class PointsService {
                     await this.browserStorage.setByKey(this.storageKey, {
                         points: 0,
                         totalLessonsCompleted: 0,
+                        totalProblemsCompleted: 0,
                         badges: [],
                         lastUpdated: new Date().toISOString()
                     });
@@ -74,9 +111,13 @@ export class PointsService {
                     // Ensure required fields exist in local storage
                     if (existingData.totalLessonsCompleted === undefined) {
                         existingData.totalLessonsCompleted = 0;
-                        await this.browserStorage.setByKey(this.storageKey, existingData);
                     }
+                    if (existingData.totalProblemsCompleted === undefined) {
+                        existingData.totalProblemsCompleted = 0;
+                    }
+                    await this.browserStorage.setByKey(this.storageKey, existingData);
                     this.totalLessonsCompleted = existingData.totalLessonsCompleted || 0;
+                    this.totalProblemsCompleted = existingData.totalProblemsCompleted || 0;
                 }
             } catch (error) {
                 console.error('Error initializing local storage user data:', error);
@@ -91,7 +132,8 @@ export class PointsService {
     async loadCurrentPoints() {
         try {
             let persistedPoints = 0;
-            let persistedLessonCompleted = 0;
+            let persistedLessonsCompleted = 0;
+            let persistedProblemsCompleted = 0;
 
             if (this.isLMSUser && this.db) {
                 const userRef = doc(this.db, 'users', this.userId);
@@ -99,16 +141,19 @@ export class PointsService {
                 if (userDoc.exists()) {
                     const userData = userDoc.data();
                     persistedPoints = userData.points || 0;
-                    persistedLessonCompleted = userData.totalLessonsCompleted || 0;
+                    persistedLessonsCompleted = userData.totalLessonsCompleted || 0;
+                    persistedProblemsCompleted = userData.totalProblemsCompleted || 0;
                 }
             } else {
                 const data = await this.browserStorage.getByKey(this.storageKey);
                 persistedPoints = data?.points || 0;
-                persistedLessonCompleted = data?.totalLessonsCompleted || 0;
+                persistedLessonsCompleted = data?.totalLessonsCompleted || 0;
+                persistedProblemsCompleted = data?.totalProblemsCompleted || 0;
             }
 
             this.totalPoints = persistedPoints;
-            this.totalLessonsCompleted = persistedLessonCompleted;
+            this.totalLessonsCompleted = persistedLessonsCompleted;
+            this.totalProblemsCompleted = persistedProblemsCompleted;
             this.sessionPoints = 0;
             this.notifyPointsUpdate();
 
@@ -116,6 +161,7 @@ export class PointsService {
             console.error('Error loading points:', error);
             this.totalPoints = 0;
             this.totalLessonsCompleted = 0;
+            this.totalProblemsCompleted = 0;
             this.sessionPoints = 0;
             this.notifyPointsUpdate();
             return 0;
@@ -132,10 +178,14 @@ export class PointsService {
             knowledgeComponents = [],
             attemptCount = 1,
             lessonProgress = 0,
-            isLessonCompletion = false
+            isLessonCompletion = false,
         } = context;
 
         let pointsEarned = 0;
+
+        // this.totalProblemsCompleted += 1;
+
+        // if (attemptCount === 1) this.userStats.firstAttemptCompletions += 1;
 
         if (isLessonCompletion) {
             // Lesson completion points
@@ -144,11 +194,13 @@ export class PointsService {
 
             if (masteryPercentage >= 90) {
                 pointsEarned += 50;
+                // this.highMasteryCompletions += 1;
             } else if (masteryPercentage >= 70) {
                 pointsEarned += 25;
             }
 
             this.incrementLessonsCompleted();
+            // this.totalLessonsCompleted += 1;
         } else {
             // Problem completion points
             pointsEarned = 10;
@@ -170,6 +222,9 @@ export class PointsService {
         this.sessionPoints += pointsEarned;
         this.totalPoints += pointsEarned;
 
+        this.checkAndAwardBadges();
+
+        console.log('🎯 Notifying UI of points update:', this.totalPoints);
         // Update UI immediately
         this.notifyPointsUpdate();
 
@@ -177,27 +232,136 @@ export class PointsService {
             pointsEarned,
             sessionPoints: this.sessionPoints,
             totalPoints: this.totalPoints,
+            totalProblemsCompleted: this.totalProblemsCompleted,
             type: isLessonCompletion ? 'lesson' : 'problem'
         });
 
         return pointsEarned;
     }
 
+    // Check and award badges
+    async checkAndAwardBadges() {
+        const earnedBadges = [];
+
+        const userData = {
+            totalLessonsCompleted: this.totalLessonsCompleted + (this.sessionLessonsCompleted || 0),
+            totalProblemsCompleted: this.totalProblemsCompleted + (this.sessionProblemsCompleted || 0),
+        }
+
+        // Check each badge criteria
+        Object.values(this.badgeDefinitions).forEach(badge => {
+            if (badge.criteria(userData)) {
+                earnedBadges.push({
+                    id: badge.id,
+                    name: badge.name,
+                    description: badge.description,
+                    icon: badge.icon,
+                    earnedAt: new Date().toISOString()
+                });
+            }
+        });
+
+        // Award new badges
+        if (earnedBadges.length > 0) {
+            await this.awardBadges(earnedBadges);
+        }
+    }
+
+    // Award badges to user
+    async awardBadges(newBadges) {
+        if (this.isLMSUser && this.db) {
+            try {
+                const userRef = doc(this.db, 'users', this.userId);
+                const userDoc = await getDoc(userRef);
+
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    const currentBadges = userData.badges || [];
+
+                    // Filter out badges already earned
+                    const badgesToAdd = newBadges.filter(newBadge =>
+                        !currentBadges.some(existingBadge => existingBadge.id === newBadge.id)
+                    );
+
+                    if (badgesToAdd.length > 0) {
+                        await updateDoc(userRef, {
+                            badges: [...currentBadges, ...badgesToAdd],
+                            totalProblemsCompleted: this.totalProblemsCompleted,
+                            totalLessonsCompleted: this.totalLessonsCompleted
+                        });
+
+                        console.log('🎯 Awarded new badges:', badgesToAdd);
+                        this.notifyBadgesUpdate(badgesToAdd);
+                    }
+                }
+            } catch (error) {
+                console.error('Error awarding badges:', error);
+            }
+        }
+        // else {
+        //     // Local storage implementation
+        //     // Similar pattern for local storage
+        // }
+    }
+
+    // Badge update callback
+    setBadgeUpdateCallback(callback) {
+        this.onBadgeUpdate = callback;
+    }
+
+    notifyBadgesUpdate(newBadges) {
+        if (this.onBadgeUpdate) {
+            this.onBadgeUpdate(newBadges);
+        }
+        this.notifyPointsUpdate();
+    }
+
+    async getEarnedBadges() {
+        try {
+            if (this.isLMSUser && this.db) {
+                const userRef = doc(this.db, 'users', this.userId);
+                const userDoc = await getDoc(userRef);
+
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    return userData.badges || [];
+                }
+            }
+            return [];
+            // else {
+            //     // Local storage
+            //     // const data = await this.browserStorage.getByKey(this.storageKey);
+            //     // return data?.badges || [];
+            // }
+        } catch (error) {
+            console.error('Error loading badges:', error);
+            return [];
+        }
+    }
+
     // Persist all accumulated points (call this when lesson is completed or next problem is clicked)
     async persistAccumulatedPoints() {
-        if (this.sessionPoints === 0) {
+        if (this.sessionPoints === 0 && (this.sessionProblemsCompleted || 0) === 0 && (this.sessionLessonsCompleted || 0) === 0) {
             return 0;
         }
 
         const pointsToPersist = this.sessionPoints;
-        console.log('🎯 Persisting points:', pointsToPersist);
+        const problemsToPersist = this.sessionProblemsCompleted || 0;
+        const lessonsToPersist = this.sessionLessonsCompleted || 0;
+        console.log('🎯 Persisting points:', { pointsToPersist, problemsToPersist, lessonsToPersist });
 
         try {
             if (this.isLMSUser && this.db) {
                 const userRef = doc(this.db, 'users', this.userId);
                 await updateDoc(userRef, {
-                    points: increment(pointsToPersist)
+                    points: increment(pointsToPersist),
+                    totalProblemsCompleted: increment(problemsToPersist),
+                    totalLessonsCompleted: increment(lessonsToPersist)
                 });
+
+                this.totalProblemsCompleted += problemsToPersist;
+                this.totalLessonsCompleted += lessonsToPersist;
+
                 // Update leaderboard with new total points
                 const newTotalPoints = this.totalPoints;
                 await this.leaderboardService.updateUserLeaderboard({
@@ -208,20 +372,29 @@ export class PointsService {
                 const currentData = await this.browserStorage.getByKey(this.storageKey) || {
                     points: 0,
                     totalLessonsCompleted: 0,
+                    totalProblemsCompleted: 0,
                     badges: []
                 };
+
                 const newPoints = (currentData.points || 0) + pointsToPersist;
+                const newProblemsCompleted = (currentData.totalProblemsCompleted || 0) + problemsToPersist;
+                const newLessonsCompleted = (currentData.totalLessonsCompleted || 0) + lessonsToPersist;
 
                 await this.browserStorage.setByKey(this.storageKey, {
                     ...currentData,
                     points: newPoints,
-                    totalLessonsCompleted: this.totalLessonsCompleted,
+                    totalLessonsCompleted: newProblemsCompleted,
+                    totalProblemsCompleted: newLessonsCompleted,
                     lastUpdated: new Date().toISOString()
                 });
+                this.totalProblemsCompleted = newProblemsCompleted;
+                this.totalLessonsCompleted = newLessonsCompleted;
             }
 
             // Reset session points after successful persistence
             this.sessionPoints = 0;
+            this.sessionProblemsCompleted = 0;
+            this.sessionLessonsCompleted = 0;
             console.log('🎯 Points persisted successfully');
             return pointsToPersist;
 
@@ -284,6 +457,41 @@ export class PointsService {
         }
     }
 
+    // Track problem completion for badges (frontend only)
+    trackProblemCompletion(isCorrect, context = {}) {
+        if (!isCorrect) {
+            return;
+        }
+
+        const { problemId, isLessonCompletion = false } = context;
+
+        // Increment counters in session only
+        if (isLessonCompletion) {
+            this.sessionLessonsCompleted = (this.sessionLessonsCompleted || 0) + 1;
+        } else {
+            this.sessionProblemsCompleted = (this.sessionProblemsCompleted || 0) + 1;
+        }
+
+        console.log('🎯 Tracked problem completion for badges (session only):', {
+            sessionProblemsCompleted: this.sessionProblemsCompleted,
+            sessionLessonsCompleted: this.sessionLessonsCompleted
+        });
+
+        // Check badges with session data
+        this.checkAndAwardBadges();
+    }
+
+    getCurrentProgress() {
+        return {
+            totalPoints: this.totalPoints,
+            sessionPoints: this.sessionPoints,
+            totalProblemsCompleted: this.totalProblemsCompleted,
+            sessionProblemsCompleted: this.sessionProblemsCompleted || 0,
+            totalLessonsCompleted: this.totalLessonsCompleted,
+            sessionLessonsCompleted: this.sessionLessonsCompleted || 0
+        };
+    }
+
     // Get current total lessons completed
     getTotalLessonsCompleted() {
         return this.totalLessonsCompleted;
@@ -296,6 +504,11 @@ export class PointsService {
         this.sessionPoints = 0;
         this.notifyPointsUpdate();
         return lostPoints;
+    }
+
+    // Get current total problems completed
+    getTotalProblemsCompleted() {
+        return this.totalProblemsCompleted;
     }
 
     // Get current total points (persisted + session)
@@ -317,14 +530,36 @@ export class PointsService {
 
     // Set callback for UI updates
     setPointsUpdateCallback(callback) {
+        console.log('🎯 PointsService: Setting points update callback', {
+            callbackExists: !!callback,
+            currentCallback: this.onPointsUpdate,
+            callbackType: typeof callback
+        });
         this.onPointsUpdate = callback;
     }
 
     // Notify UI of points changes
     notifyPointsUpdate() {
+        console.log('🎯 PointsService: Notifying UI update', {
+            callbackExists: !!this.onPointsUpdate,
+            totalPoints: this.totalPoints,
+            callbackType: typeof this.onPointsUpdate
+        });
+
         if (this.onPointsUpdate) {
-            this.onPointsUpdate(this.totalPoints);
+            console.log('🎯 PointsService: Calling callback with:', this.totalPoints);
+            try {
+                this.onPointsUpdate(this.totalPoints);
+            } catch (error) {
+                console.error('🎯 PointsService: Error in callback:', error);
+            }
+        } else {
+            console.warn('🎯 PointsService: No callback set!');
         }
+        // if (this.onPointsUpdate) {
+        //     this.onPointsUpdate(this.totalPoints);
+        //     // this.onPointsUpdate(this.getCurrentProgress());
+        // }
     }
 
     // Backward compatibility methods

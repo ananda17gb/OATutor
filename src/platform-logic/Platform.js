@@ -28,6 +28,7 @@ import ProgressBar from "@components/ProgressBar";
 import { PointsService } from "../services/PointsService"
 import { LeaderboardService } from "../services/LeaderboardService"
 import PointsDisplay from "@components/PointDisplay";
+import BadgeDisplay from "@components/BadgeDisplay";
 import Leaderboard from "@components/Leaderboard";
 
 let problemPool = require(`@generated/processed-content-pool/${CONTENT_SOURCE}.json`);
@@ -40,6 +41,8 @@ class Platform extends React.Component {
 
     constructor(props, context) {
         super(props);
+        console.log('🎯 Platform: Constructor called');
+
 
         this.activityContext = this.getActivityContext(context);
         this.lessonProgressKey = this.getLessonProgressKey();
@@ -628,6 +631,10 @@ class Platform extends React.Component {
             masteryPercentage: Math.round(mastery * 100)
         });
 
+        this.pointsService.trackProblemAttempt(true, {
+            isLessonCompletion: true
+        })
+
         // Update leaderboard for lesson completion
         if (this.leaderboardService) {
             await this.leaderboardService.incrementLessonsCompleted();
@@ -800,15 +807,23 @@ class Platform extends React.Component {
                                         </div>
                                     )}
 
-                                    {/* Points Display for non-privileged users */}
+                                    {/* Points and Badges Display for non-privileged users */}
                                     {this.userID && !this.isPrivileged && (
-                                        <PointsDisplay
-                                            userId={this.userID}
-                                            firebase={this.context.firebase}
-                                            browserStorage={this.context.browserStorage}
-                                            pointsService={this.pointsService}
-                                            showLabel={true}
-                                        />
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                            <PointsDisplay
+                                                userId={this.userID}
+                                                firebase={this.context.firebase}
+                                                browserStorage={this.context.browserStorage}
+                                                pointsService={this.pointsService}
+                                                showLabel={true}
+                                            />
+                                            <BadgeDisplay
+                                                userId={this.userID}
+                                                firebase={this.context.firebase}
+                                                browserStorage={this.context.browserStorage}
+                                                pointsService={this.pointsService}
+                                            />
+                                        </div>
                                     )}
 
                                     {/* Leaderboard Button - Centered and conditional */}
@@ -888,6 +903,9 @@ class Platform extends React.Component {
                             trackProblemAttempt={(problemId) =>
                                 this.pointsService?.trackProblemAttempt(problemId) || 1
                             }
+                            onPointsUpdate={(points) => {
+                                this.forceUpdate();
+                            }}
                         />
                     </ErrorBoundary>
                 ) : (
