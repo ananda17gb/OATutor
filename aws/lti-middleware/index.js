@@ -34,7 +34,7 @@ const consumerKeySecretMap = {
 
 // const oatsHost = "https://cahlr.github.io/OATutor/#";
 // const oatsHost = "https://oatutor.vercel.app/#";
-const oatsHost = "https://forget-ensemble-happen-collections.trycloudflare.com/#"
+const oatsHost = "https://both-idle-collector-listprice.trycloudflare.com/#"
 
 
 const stagingHost = "https://cahlr.github.io/OATutor-Staging/#";

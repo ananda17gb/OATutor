@@ -817,6 +817,12 @@ class Platform extends React.Component {
                                                 pointsService={this.pointsService}
                                                 showLabel={true}
                                             />
+                                        </div>
+                                    )}
+
+
+                                    {this.userID && !this.isPrivileged && (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                                             <BadgeDisplay
                                                 userId={this.userID}
                                                 firebase={this.context.firebase}
